@@ -41,6 +41,19 @@ const UI = (() => {
     // Pages
     pagesContainer:  $('pages-container'),
     pdfViewport:     $('pdf-viewport'),
+
+    // Persistence
+    saveBtn:         $('save-btn'),
+    recentList:      $('recent-list'),
+
+    // Settings
+    settingsBtn:          $('settings-btn'),
+    settingsPanel:        $('settings-panel'),
+    settingsClose:        $('settings-close'),
+    highlightColorInput:  $('highlight-color-input'),
+    defaultZoomInput:     $('default-zoom-input'),
+    clearRecentBtn:       $('clear-recent-btn'),
+    clearHighlightsBtn:   $('clear-highlights-btn'),
   };
 
   function showUpload() {
@@ -68,13 +81,21 @@ const UI = (() => {
   }
 
   function toggleSidebar(force) {
-    const hidden = force !== undefined ? !force : els.sidebar.classList.contains('hidden');
-    els.sidebar.classList.toggle('hidden', !hidden);
+    const show = force !== undefined ? force : els.sidebar.classList.contains('hidden');
+    els.sidebar.classList.toggle('hidden', !show);
+    if (show) els.settingsPanel.classList.add('hidden');
+  }
+
+  function toggleSettings(force) {
+    const show = force !== undefined ? force : els.settingsPanel.classList.contains('hidden');
+    els.settingsPanel.classList.toggle('hidden', !show);
+    if (show) els.sidebar.classList.add('hidden');
   }
 
   function toggleSearch(force) {
     const show = force !== undefined ? force : els.searchBar.classList.contains('hidden');
     els.searchBar.classList.toggle('hidden', !show);
+    document.body.classList.toggle('search-open', show);
     if (show) {
       els.searchInput.focus();
       els.searchInput.select();
@@ -107,7 +128,7 @@ const UI = (() => {
     renderItems(outline, 0);
   }
 
-  // Create or return a page wrapper div with canvas and text layer
+  // Create or return a page wrapper div with canvas, highlight layers, and text layer
   function getOrCreatePageEl(pageNum) {
     let wrapper = els.pagesContainer.querySelector(`[data-page="${pageNum}"]`);
     if (!wrapper) {
@@ -116,18 +137,78 @@ const UI = (() => {
       wrapper.dataset.page = pageNum;
 
       const canvas = document.createElement('canvas');
+      const userHlLayer = document.createElement('canvas');
+      userHlLayer.className = 'user-hl-layer';
+      const hlLayer = document.createElement('canvas');
+      hlLayer.className = 'hl-layer';
       const textLayer = document.createElement('div');
       textLayer.className = 'textLayer';
 
       wrapper.appendChild(canvas);
+      wrapper.appendChild(userHlLayer);
+      wrapper.appendChild(hlLayer);
       wrapper.appendChild(textLayer);
       els.pagesContainer.appendChild(wrapper);
     }
     return {
       wrapper,
       canvas: wrapper.querySelector('canvas'),
+      userHlLayer: wrapper.querySelector('.user-hl-layer'),
+      hlLayer: wrapper.querySelector('.hl-layer'),
       textLayer: wrapper.querySelector('.textLayer'),
     };
+  }
+
+  // Render recent files list. Calls onOpen(id) or onDelete(id).
+  function renderRecent(files, onOpen, onDelete) {
+    if (!els.recentList) return;
+    if (!files.length) {
+      els.recentList.classList.add('hidden');
+      return;
+    }
+    els.recentList.classList.remove('hidden');
+    els.recentList.innerHTML = '<p class="recent-label">Recent</p>';
+    files.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'recent-card';
+
+      const info = document.createElement('button');
+      info.className = 'recent-info';
+      info.title = f.name;
+      info.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span class="recent-name">${escapeHtml(f.name)}</span>
+        <span class="recent-meta">${formatDate(f.lastOpened)} · ${formatSize(f.size)}</span>
+      `;
+      info.addEventListener('click', () => onOpen(f.id));
+
+      const del = document.createElement('button');
+      del.className = 'recent-delete icon-btn';
+      del.title = 'Remove from recent';
+      del.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>`;
+      del.addEventListener('click', e => { e.stopPropagation(); onDelete(f.id); });
+
+      card.appendChild(info);
+      card.appendChild(del);
+      els.recentList.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function formatDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function formatSize(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
   function clearPages() {
@@ -164,6 +245,7 @@ const UI = (() => {
     setPageInfo,
     setZoom,
     toggleSidebar,
+    toggleSettings,
     toggleSearch,
     setSearchStatus,
     buildTOC,
@@ -171,5 +253,6 @@ const UI = (() => {
     clearPages,
     scrollToPage,
     observePages,
+    renderRecent,
   };
 })();

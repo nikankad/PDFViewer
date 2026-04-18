@@ -37,6 +37,7 @@
       <p class="drop-title">Drop a PDF here</p>
       <p class="drop-sub">or <button id="browse-btn" class="link-btn">browse files</button></p>
     </div>
+    <div id="recent-list" class="recent-list hidden"></div>
   </div>
 
   <!-- Viewer screen -->
@@ -110,8 +111,68 @@
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </button>
+        <button id="save-btn" class="icon-btn save-btn" title="Save highlights">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+        <button id="settings-btn" class="icon-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
       </div>
     </header>
+
+    <!-- Settings panel -->
+    <aside id="settings-panel" class="settings-panel hidden">
+      <div class="sidebar-header">
+        <span>Settings</span>
+        <button id="settings-close" class="icon-btn" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="settings-body">
+
+        <div class="settings-section">
+          <p class="settings-section-label">Appearance</p>
+          <div class="settings-row">
+            <label for="pdf-dark-mode-toggle">PDF dark mode</label>
+            <label class="switch">
+              <input type="checkbox" id="pdf-dark-mode-toggle" />
+              <span class="switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <label for="highlight-color-input">Highlight color</label>
+            <input type="color" id="highlight-color-input" value="#ffdd00" class="color-input" />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <p class="settings-section-label">Zoom</p>
+          <div class="settings-row">
+            <label for="default-zoom-input">Default zoom</label>
+            <div class="settings-control">
+              <input type="number" id="default-zoom-input" class="settings-number-input" min="25" max="400" step="25" value="150" />
+              <span class="settings-unit">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <p class="settings-section-label">Storage</p>
+          <button id="clear-recent-btn" class="settings-danger-btn">Clear recent files</button>
+          <button id="clear-highlights-btn" class="settings-danger-btn">Clear all highlights</button>
+        </div>
+
+      </div>
+    </aside>
 
     <!-- Search bar -->
     <div id="search-bar" class="search-bar hidden">
@@ -150,6 +211,7 @@
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   </script>
+  <script src="storage.js"></script>
   <script src="pdf-handler.js"></script>
   <script src="ui.js"></script>
   <script src="app.js"></script>
