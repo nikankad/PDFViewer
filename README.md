@@ -1,64 +1,60 @@
 # PDFViewer
 
-A lightweight, mobile-friendly PDF viewer that runs entirely in the browser. No installs, no server, no build step — just open and read.
+A fast, minimal PDF viewer that runs entirely in your browser. No accounts, no installs, no uploads — just open a file and read.
 
 ## Features
 
-- **Drag & drop** to open any PDF, or click to browse
-- **Recent files** — previously opened PDFs reopen instantly from browser storage
-- **Continuous scroll** through all pages
-- **Zoom** in/out (25%–400%) with buttons or `+`/`-` keys
-- **Page navigation** — prev/next buttons, jump-to-page input
-- **Table of contents** — sidebar built from the PDF's outline
-- **Text search** — find across all pages, jump between results with highlights
-- **Text highlights** — select any text to highlight it; save highlights per document
-- **Dark mode** — flat dark UI, easy on the eyes
+- Drag and drop any PDF to open it instantly
+- Recent files reopen in one click, stored locally in your browser
+- Continuous scroll through all pages
+- Text search across the entire document with highlighted results
+- Select text to highlight it, and save highlights per document
+- Table of contents sidebar built from the PDF's outline
+- Zoom from 25% to 400%, fit-to-width, and per-document zoom memory
+- Dark mode for comfortable reading
+- Works on desktop and mobile
 
-## Usage
+## Keyboard shortcuts
 
-**Open a PDF** — drag it onto the page or click "browse files"
-
-**Toolbar** — visible on page 1, auto-hides when you scroll; move your mouse to the top of the screen to bring it back
-
-| Action | How |
+| Action | Shortcut |
 |---|---|
-| Zoom in / out | `+` / `-` keys, or toolbar buttons |
-| Next / previous page | Arrow keys, or toolbar buttons |
-| Jump to page | Click the page number in the toolbar |
-| Table of contents | Click the ☰ button |
-| Search | Click 🔍 or press `Ctrl+F` / `Cmd+F` |
-| Highlight text | Select text on the page |
-| Save highlights | Click the 💾 button in the toolbar |
-| Open new PDF | Click the 📄 button in the toolbar |
+| Next / previous page | `]` / `[` or arrow keys |
+| First / last page | `Home` / `End` |
+| Zoom in / out | `+` / `-` |
+| Reset zoom | `Ctrl+0` |
+| Fit to width | `F` |
+| Search | `Ctrl+F` |
+| Toggle contents | `Ctrl+T` |
+| Toggle dark mode | `Ctrl+D` |
+| Close panel | `Esc` |
+
+## Privacy
+
+Everything runs locally in your browser. Your files are never uploaded anywhere.
+
+- PDF files and highlights are stored in your browser's IndexedDB
+- Settings are stored in localStorage
+- The only external request is loading the pdf.js rendering library from a CDN — your PDF content is never transmitted
+
+To clear stored data, use **Settings → Clear recent files** or **Clear all highlights**, or clear your browser's site data for this page.
 
 ## Running locally
 
 ```bash
 python3 -m http.server 8000
-# then open http://localhost:8000
 ```
 
-Or use the VS Code Live Server extension.
+Then open `http://localhost:8000`. Any static file server works.
 
 ## Deploying to GitHub Pages
 
 1. Push to your `main` branch
-2. Go to repo **Settings → Pages**
-3. Set source to `main` / `(root)`
+2. Go to **Settings → Pages**
+3. Set source to `main / (root)`
 4. Your viewer will be live at `https://<username>.github.io/PDFViewer/`
 
-## Privacy
+## Stack
 
-Everything runs in your browser. Your PDFs are never uploaded to any server.
-
-- **PDF files** are read directly from your device and stored locally in your browser's IndexedDB so they reopen instantly next time.
-- **Highlights and settings** are also stored locally (IndexedDB and localStorage respectively).
-- **No data leaves your device** — the only external network request is loading the pdf.js rendering library from a CDN. Your PDF content is never transmitted anywhere.
-
-To remove all locally stored data, use the "Clear recent files" and "Clear all highlights" buttons in Settings, or clear your browser's site data.
-
-## Tech
-
-- Vanilla HTML/CSS/JavaScript — no framework, no build step
-- [pdf.js](https://mozilla.github.io/pdf.js/) v3.11 via CDN for PDF rendering
-- IndexedDB for recent files and saved highlights
+- Vanilla HTML, CSS, and JavaScript — no framework, no build step
+- [pdf.js](https://mozilla.github.io/pdf.js/) for PDF rendering
+- IndexedDB for file and highlight storage
