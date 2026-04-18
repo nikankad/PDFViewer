@@ -47,6 +47,16 @@ Or use the VS Code Live Server extension.
 3. Set source to `main` / `(root)`
 4. Your viewer will be live at `https://<username>.github.io/PDFViewer/`
 
+## Privacy
+
+Everything runs in your browser. Your PDFs are never uploaded to any server.
+
+- **PDF files** are read directly from your device and stored locally in your browser's IndexedDB so they reopen instantly next time.
+- **Highlights and settings** are also stored locally (IndexedDB and localStorage respectively).
+- **No data leaves your device** — the only external network request is loading the pdf.js rendering library from a CDN. Your PDF content is never transmitted anywhere.
+
+To remove all locally stored data, use the "Clear recent files" and "Clear all highlights" buttons in Settings, or clear your browser's site data.
+
 ## Tech
 
 - Vanilla HTML/CSS/JavaScript — no framework, no build step
