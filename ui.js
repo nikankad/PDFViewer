@@ -175,14 +175,18 @@ const UI = (() => {
       const info = document.createElement('button');
       info.className = 'recent-info';
       info.title = f.name;
-      info.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      info.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        <span class="recent-name">${escapeHtml(f.name)}</span>
-        <span class="recent-meta">${formatDate(f.lastOpened)} · ${formatSize(f.size)}</span>
-      `;
+        </svg>`;
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'recent-name';
+      nameSpan.textContent = f.name;
+      const metaSpan = document.createElement('span');
+      metaSpan.className = 'recent-meta';
+      metaSpan.textContent = `${formatDate(f.lastOpened)} \u00b7 ${formatSize(f.size)}`;
+      info.appendChild(nameSpan);
+      info.appendChild(metaSpan);
       info.addEventListener('click', () => onOpen(f.id));
 
       const del = document.createElement('button');
