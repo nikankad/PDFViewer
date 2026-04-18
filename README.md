@@ -2,6 +2,10 @@
 
 A fast, minimal PDF viewer that runs entirely in your browser. No accounts, no installs, no uploads — just open a file and read.
 
+## Motivation
+
+Most PDF readers are bloated, paywalled, or quietly uploading your documents to a server somewhere. The free ones tend to be clunky, and almost none of them have a proper dark mode. I built PDFViewer to fix all of that — a clean, fast reader that respects your privacy and doesn't cost anything.
+
 ## Features
 
 - Drag and drop any PDF to open it instantly
