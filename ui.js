@@ -128,14 +128,31 @@ const UI = (() => {
     renderItems(outline, 0);
   }
 
-  // Create or return a page wrapper div with canvas, highlight layers, and text layer
+  // Create a lightweight placeholder wrapper so scroll height is correct before rendering
+  function createPlaceholder(pageNum, width, height) {
+    let wrapper = els.pagesContainer.querySelector(`[data-page="${pageNum}"]`);
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'page-wrapper';
+      wrapper.dataset.page = pageNum;
+      els.pagesContainer.appendChild(wrapper);
+    }
+    wrapper.style.width = width + 'px';
+    wrapper.style.minHeight = height + 'px';
+    return wrapper;
+  }
+
+  // Create or return a page wrapper div with canvas, highlight layers, and text layer.
+  // Canvases are added lazily — wrapper may already exist as a placeholder.
   function getOrCreatePageEl(pageNum) {
     let wrapper = els.pagesContainer.querySelector(`[data-page="${pageNum}"]`);
     if (!wrapper) {
       wrapper = document.createElement('div');
       wrapper.className = 'page-wrapper';
       wrapper.dataset.page = pageNum;
-
+      els.pagesContainer.appendChild(wrapper);
+    }
+    if (!wrapper.querySelector('canvas')) {
       const canvas = document.createElement('canvas');
       const userHlLayer = document.createElement('canvas');
       userHlLayer.className = 'user-hl-layer';
@@ -143,12 +160,10 @@ const UI = (() => {
       hlLayer.className = 'hl-layer';
       const textLayer = document.createElement('div');
       textLayer.className = 'textLayer';
-
       wrapper.appendChild(canvas);
       wrapper.appendChild(userHlLayer);
       wrapper.appendChild(hlLayer);
       wrapper.appendChild(textLayer);
-      els.pagesContainer.appendChild(wrapper);
     }
     return {
       wrapper,
@@ -254,6 +269,7 @@ const UI = (() => {
     setSearchStatus,
     buildTOC,
     getOrCreatePageEl,
+    createPlaceholder,
     clearPages,
     scrollToPage,
     observePages,

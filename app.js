@@ -8,6 +8,7 @@
   let currentPage   = 1;
   let currentFileId = null;
   let pageObserver  = null;
+  let lazyObserver  = null;
   let searchResults = [];
   let searchIndex   = 0;
 
@@ -36,16 +37,14 @@
     currentPage = 1;
     PDFHandler.setScale(Storage.getSetting('defaultZoom', 150) / 100);
     UI.showViewer();
-    await renderAll();
 
-    // Load and draw saved user highlights
+    // Load highlights before lazy rendering starts so they appear on first render
     if (currentFileId) {
       const saved = await Storage.getHighlights(currentFileId);
-      if (saved && Object.keys(saved).length) {
-        PDFHandler.setHighlights(saved);
-        redrawUserHighlights();
-      }
+      if (saved && Object.keys(saved).length) PDFHandler.setHighlights(saved);
     }
+
+    await renderAll();
 
     const outline = await PDFHandler.getOutline();
     await UI.buildTOC(outline, onTOCClick);
@@ -97,25 +96,48 @@
 
   async function renderAll() {
     UI.clearPages();
-    await renderVisible();
+    const total = PDFHandler.getPageCount();
+    const dims = await PDFHandler.getPageDimensions(1);
+    for (let i = 1; i <= total; i++) UI.createPlaceholder(i, dims.width, dims.height);
+    setupLazyRender();
   }
 
-  async function renderVisible() {
-    const total = PDFHandler.getPageCount();
-    for (let i = 1; i <= total; i++) {
-      const { canvas, textLayer } = UI.getOrCreatePageEl(i);
-      await PDFHandler.renderPage(i, canvas, textLayer);
-    }
+  function setupLazyRender() {
+    if (lazyObserver) lazyObserver.disconnect();
+    lazyObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target.dataset.rendered) {
+          renderPageLazy(parseInt(entry.target.dataset.page, 10));
+        }
+      });
+    }, { root: UI.els.pdfViewport, rootMargin: '200% 0px', threshold: 0 });
+    document.querySelectorAll('.page-wrapper').forEach(w => lazyObserver.observe(w));
+  }
+
+  async function renderPageLazy(pageNum) {
+    const wrapper = document.querySelector(`.page-wrapper[data-page="${pageNum}"]`);
+    if (!wrapper || wrapper.dataset.rendered) return;
+    wrapper.dataset.rendered = 'true';
+    const { canvas, textLayer, userHlLayer, hlLayer } = UI.getOrCreatePageEl(pageNum);
+    await PDFHandler.renderPage(pageNum, canvas, textLayer);
+    wrapper.style.minHeight = '';
+    PDFHandler.drawUserHighlights(pageNum, userHlLayer);
+    const q = UI.els.searchInput.value.trim();
+    if (q) PDFHandler.highlightPage(pageNum, hlLayer, q);
   }
 
   async function rerenderAll() {
     UI.setLoading(true);
     try {
-      await renderVisible();
+      const dims = await PDFHandler.getPageDimensions(1);
+      document.querySelectorAll('.page-wrapper').forEach(w => {
+        delete w.dataset.rendered;
+        Array.from(w.children).forEach(c => c.remove());
+        w.style.width = dims.width + 'px';
+        w.style.minHeight = dims.height + 'px';
+      });
       UI.setZoom(PDFHandler.getScale());
-      redrawUserHighlights();
-      const q = UI.els.searchInput.value.trim();
-      if (q) applySearchHighlights(q);
+      setupLazyRender();
     } finally {
       UI.setLoading(false);
     }

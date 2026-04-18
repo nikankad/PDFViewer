@@ -84,6 +84,13 @@ const PDFHandler = (() => {
     }
   }
 
+  async function getPageDimensions(pageNum) {
+    if (!_pdfDoc) return null;
+    const page = await _pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: _scale });
+    return { width: Math.floor(viewport.width), height: Math.floor(viewport.height) };
+  }
+
   async function getOutline() {
     if (!_pdfDoc) return [];
     return (await _pdfDoc.getOutline()) || [];
@@ -271,5 +278,5 @@ const PDFHandler = (() => {
     }
   }
 
-  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, getOutline, getPageForDest, search, highlightPage, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
+  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, getPageDimensions, getOutline, getPageForDest, search, highlightPage, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
 })();
