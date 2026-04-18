@@ -1,5 +1,7 @@
 // Manages pdf.js document loading and per-page rendering
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
 const PDFHandler = (() => {
   let _pdfDoc = null;
   let _scale = 1.0;
