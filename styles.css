@@ -259,7 +259,7 @@ html, body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 20;
+  z-index: 31;
   overflow: hidden;
 }
 .sidebar-header {
@@ -322,7 +322,7 @@ html, body {
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 20;
+  z-index: 31;
   overflow: hidden;
 }
 .settings-body {
@@ -444,6 +444,29 @@ html, body {
   color: #e05555;
 }
 
+/* ── Keyboard shortcuts reference ───────────────────── */
+.shortcuts-list { display: flex; flex-direction: column; gap: 1px; padding: 4px 0 8px; }
+.shortcut-hint { font-size: 11px; color: var(--text-muted); padding: 4px 16px 0; opacity: 0.6; }
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+}
+.shortcut-row span { font-size: 12px; color: var(--text-muted); }
+.shortcut-keys { display: flex; gap: 3px; }
+kbd {
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text);
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
 /* ── PDF viewport ────────────────────────────────────── */
 .search-open .pdf-viewport {
   top: calc(var(--toolbar-h) + var(--search-h));
@@ -459,6 +482,7 @@ html, body {
   background: var(--bg);
   display: flex;
   justify-content: center;
+  z-index: 10;
 }
 .pages-container {
   display: flex;

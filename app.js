@@ -195,34 +195,7 @@
     wrappers.forEach(w => pageObserver.observe(w));
   }
 
-  // ── Toolbar auto-hide ────────────────────────────────
-  // Visible on page 1, hides when scrolled past page 1, shows on hover.
-
-  (() => {
-    const toolbar = document.querySelector('.toolbar');
-
-    function updateToolbarVisibility() {
-      if (currentPage <= 1) {
-        toolbar.classList.remove('hidden-bar');
-      } else {
-        toolbar.classList.add('hidden-bar');
-      }
-    }
-
-    // Use mousemove on the document — when toolbar is off-screen mouseenter never fires
-    document.addEventListener('mousemove', e => {
-      if (e.clientY < 52) {
-        toolbar.classList.remove('hidden-bar');
-      } else if (!toolbar.matches(':hover')) {
-        updateToolbarVisibility();
-      }
-    });
-
-    UI.els.pdfViewport.addEventListener('scroll', () => updateToolbarVisibility(), { passive: true });
-
-    // Expose so startObserver can trigger it when currentPage changes
-    window._updateToolbarVisibility = updateToolbarVisibility;
-  })();
+  window._updateToolbarVisibility = () => {};
 
   // ── TOC navigation ───────────────────────────────────
 
@@ -339,7 +312,7 @@
   });
 
   UI.els.tocBtn.addEventListener('click', () => UI.toggleSidebar());
-  UI.els.sidebarClose.addEventListener('click', () => UI.toggleSidebar(false));
+  document.getElementById('sidebar-close').addEventListener('click', () => UI.toggleSidebar(false));
 
   UI.els.searchBtn.addEventListener('click', () => UI.toggleSearch());
   UI.els.searchCloseBtn.addEventListener('click', () => { UI.toggleSearch(false); applySearchHighlights(''); searchResults = []; UI.setSearchStatus(''); });
@@ -353,6 +326,8 @@
   document.addEventListener('keydown', e => {
     const tag = document.activeElement.tagName;
     if (tag === 'INPUT') return;
+    if (!PDFHandler.getDoc() && e.key !== 'Escape') return;
+    const mod = e.ctrlKey || e.metaKey;
     switch (e.key) {
       case '+': case '=': e.preventDefault(); PDFHandler.setScale(Math.min(ZOOM_MAX, PDFHandler.getScale() + ZOOM_STEP)); rerenderAll(); break;
       case '-':           e.preventDefault(); PDFHandler.setScale(Math.max(ZOOM_MIN, PDFHandler.getScale() - ZOOM_STEP)); rerenderAll(); break;
@@ -360,14 +335,33 @@
         if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
       case 'ArrowRight': case 'ArrowDown':
         if (currentPage < PDFHandler.getPageCount()) { currentPage++; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
-      case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); UI.toggleSearch(true); } break;
+      case '[':
+        if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
+      case ']':
+        if (currentPage < PDFHandler.getPageCount()) { currentPage++; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
+      case 'Home': e.preventDefault(); currentPage = 1; UI.scrollToPage(1); UI.setPageInfo(1, PDFHandler.getPageCount()); break;
+      case 'End':  e.preventDefault(); currentPage = PDFHandler.getPageCount(); UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); break;
+      case '0': if (mod) { PDFHandler.setScale(Storage.getSetting('defaultZoom', 150) / 100); rerenderAll(); } break;
+      case 'f': e.preventDefault(); if (mod) { UI.toggleSearch(true); } else { PDFHandler.fitToWidth(UI.els.pdfViewport.clientWidth); rerenderAll(); } break;
+      case 't': if (mod) UI.toggleSidebar(); break;
+      case 's': if (mod) { e.preventDefault(); UI.toggleSearch(true); } break;
+      case 'd': if (mod) applyPdfDarkMode(!Storage.getSetting('pdfDarkMode', false)); break;
+      case 'Escape':
+        if (!UI.els.searchBar.classList.contains('hidden')) {
+          UI.toggleSearch(false); applySearchHighlights(''); searchResults = []; UI.setSearchStatus('');
+        } else if (!UI.els.sidebar.classList.contains('hidden')) {
+          UI.toggleSidebar(false);
+        } else if (!UI.els.settingsPanel.classList.contains('hidden')) {
+          UI.toggleSettings(false);
+        }
+        break;
     }
   });
 
   // ── Settings events ──────────────────────────────────
 
   UI.els.settingsBtn.addEventListener('click', () => UI.toggleSettings());
-  UI.els.settingsClose.addEventListener('click', () => UI.toggleSettings(false));
+  document.getElementById('settings-close').addEventListener('click', () => UI.toggleSettings(false));
 
   pdfDarkModeToggle.addEventListener('change', () => {
     applyPdfDarkMode(pdfDarkModeToggle.checked);
