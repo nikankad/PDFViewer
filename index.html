@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>PDFViewer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Global drag overlay -->
+  <div id="drop-overlay" class="drop-overlay hidden">
+    <div class="drop-overlay-inner">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 3v12M7 8l5-5 5 5M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <span>Drop PDF here</span>
+    </div>
+  </div>
+
+  <!-- Upload screen -->
+  <div id="upload-screen" class="upload-screen">
+    <div class="upload-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      PDFViewer
+    </div>
+    <div id="drop-zone" class="drop-zone">
+      <input type="file" id="file-input" accept=".pdf" hidden />
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M12 3v12M7 8l5-5 5 5M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p class="drop-title">Drop a PDF here</p>
+      <p class="drop-sub">or <button id="browse-btn" class="link-btn">browse files</button></p>
+    </div>
+  </div>
+
+  <!-- Viewer screen -->
+  <div id="viewer-screen" class="viewer-screen hidden">
+
+    <!-- TOC Sidebar -->
+    <aside id="sidebar" class="sidebar hidden">
+      <div class="sidebar-header">
+        <span>Contents</span>
+        <button id="sidebar-close" class="icon-btn" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div id="toc-list" class="toc-list">
+        <p class="toc-empty">No outline available</p>
+      </div>
+    </aside>
+
+    <!-- Toolbar -->
+    <header class="toolbar">
+      <div class="toolbar-group">
+        <button id="toc-btn" class="icon-btn" title="Table of contents">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <button id="open-btn" class="icon-btn" title="Open new PDF">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </button>
+        <input type="file" id="file-input-viewer" accept=".pdf" hidden />
+      </div>
+
+      <div class="toolbar-group toolbar-center">
+        <button id="prev-btn" class="icon-btn" title="Previous page">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div class="page-nav">
+          <input id="page-input" class="page-input" type="number" min="1" value="1" />
+          <span class="page-sep">/</span>
+          <span id="page-total">—</span>
+        </div>
+        <button id="next-btn" class="icon-btn" title="Next page">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="toolbar-group">
+        <button id="zoom-out-btn" class="icon-btn" title="Zoom out (-)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <span id="zoom-label" class="zoom-label">100%</span>
+        <button id="zoom-in-btn" class="icon-btn" title="Zoom in (+)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button id="search-btn" class="icon-btn" title="Search (Ctrl+F)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search bar -->
+    <div id="search-bar" class="search-bar hidden">
+      <input id="search-input" class="search-input" type="text" placeholder="Search in document…" />
+      <button id="search-prev-btn" class="icon-btn" title="Previous match">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <span id="search-status" class="search-status"></span>
+      <button id="search-next-btn" class="icon-btn" title="Next match">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+      <button id="search-close-btn" class="icon-btn" title="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- PDF viewport -->
+    <main id="pdf-viewport" class="pdf-viewport">
+      <div id="pages-container" class="pages-container"></div>
+    </main>
+
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  </script>
+  <script src="pdf-handler.js"></script>
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
