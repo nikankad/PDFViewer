@@ -1,10 +1,10 @@
 # PDFViewer
 
-A fast, minimal PDF viewer that runs entirely in your browser. No accounts, no installs, no uploads — just open a file and read.
+A fast, minimal PDF viewer that runs entirely in your browser. No accounts, no installs, no uploads. Just open a file and read.
 
 ## Motivation
 
-Most PDF readers are bloated, paywalled, or quietly uploading your documents to a server somewhere. The free ones tend to be clunky, and almost none of them have a proper dark mode. I built PDFViewer to fix all of that — a clean, fast reader that respects your privacy and doesn't cost anything.
+Most PDF readers are bloated, paywalled, or quietly uploading your documents to a server somewhere. The free ones tend to be clunky, and almost none of them have a proper dark mode. I built PDFViewer to fix all of that: a clean, fast reader that respects your privacy and doesn't cost anything.
 
 ## Features
 
@@ -32,13 +32,24 @@ Most PDF readers are bloated, paywalled, or quietly uploading your documents to 
 | Toggle dark mode | `Ctrl+D` |
 | Close panel | `Esc` |
 
+## Planned features
+
+The goal is to keep this simple and focused, but there are a few things on the roadmap:
+
+- Note taking and annotations
+- Bookmarks
+- Better mobile gestures
+- Page thumbnails sidebar
+
+Have a suggestion? Drop it in the Issues tab.
+
 ## Privacy
 
 Everything runs locally in your browser. Your files are never uploaded anywhere.
 
 - PDF files and highlights are stored in your browser's IndexedDB
 - Settings are stored in localStorage
-- The only external request is loading the pdf.js rendering library from a CDN — your PDF content is never transmitted
+- The only external request is loading the pdf.js rendering library from a CDN. Your PDF content is never transmitted
 
 To clear stored data, use **Settings → Clear recent files** or **Clear all highlights**, or clear your browser's site data for this page.
 
@@ -59,6 +70,6 @@ Then open `http://localhost:8000`. Any static file server works.
 
 ## Stack
 
-- Vanilla HTML, CSS, and JavaScript — no framework, no build step
+- Vanilla HTML, CSS, and JavaScript (no framework, no build step)
 - [pdf.js](https://mozilla.github.io/pdf.js/) for PDF rendering
 - IndexedDB for file and highlight storage
