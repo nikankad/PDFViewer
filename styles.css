@@ -218,6 +218,19 @@ html, body {
   text-align: center;
   user-select: none;
 }
+.zoom-reset-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0 4px;
+  height: 28px;
+  transition: background 0.15s, color 0.15s;
+}
+.zoom-reset-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
 
 /* ── Search bar ──────────────────────────────────────── */
 .search-bar {
@@ -572,6 +585,45 @@ kbd {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #666; }
+
+/* ── Highlight button & picker ──────────────────────── */
+.highlight-container {
+  position: relative;
+}
+.highlight-btn {
+  position: relative;
+  flex-direction: column;
+  gap: 2px;
+  height: 36px;
+  padding-bottom: 4px;
+}
+.highlight-btn.active {
+  background: var(--surface2);
+  color: var(--accent);
+}
+.highlight-color-bar {
+  display: block;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffdd00;
+  flex-shrink: 0;
+}
+.highlight-picker {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.highlight-picker .color-input {
+  width: 40px;
+  height: 32px;
+}
 
 /* ── Save button ─────────────────────────────────────── */
 .save-btn.saved {

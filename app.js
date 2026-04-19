@@ -5,19 +5,20 @@
   const ZOOM_MIN  = 0.25;
   const ZOOM_MAX  = 4.0;
 
-  let currentPage   = 1;
-  let currentFileId = null;
-  let pageObserver  = null;
-  let lazyObserver  = null;
-  let searchResults = [];
-  let searchIndex   = 0;
+  let currentPage      = 1;
+  let currentFileId    = null;
+  let pageObserver     = null;
+  let lazyObserver     = null;
+  let searchResults    = [];
+  let searchIndex      = 0;
+  let highlightMode    = false;
 
   // ── Settings init ────────────────────────────────────
 
   const defaultZoomPct = Storage.getSetting('defaultZoom', 150);
   const highlightColor = Storage.getSetting('highlightColor', '#ffdd00');
   UI.els.defaultZoomInput.value = defaultZoomPct;
-  UI.els.highlightColorInput.value = highlightColor;
+  UI.els.highlightColorPicker.value = highlightColor;
   PDFHandler.setHighlightColor(highlightColor);
 
   const pdfDarkModeToggle = document.getElementById('pdf-dark-mode-toggle');
@@ -153,8 +154,10 @@
     });
   }
 
-  // Capture selected text rect on a page and add as highlight
+  // Capture selected text rect on a page and add as highlight (only when highlight mode is active)
   UI.els.pdfViewport.addEventListener('mouseup', () => {
+    if (!highlightMode) return;
+
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 
@@ -171,18 +174,34 @@
     if (!node || !node.dataset.page) return;
 
     const pageNum = parseInt(node.dataset.page, 10);
-    const wrapperRect = node.getBoundingClientRect();
-    const scale = PDFHandler.getScale();
+    const textLayerDiv = node.querySelector('.textLayer');
+    const refRect = (textLayerDiv || node).getBoundingClientRect();
 
-    rects.forEach(r => {
-      // Convert to page-local coords at scale=1
-      PDFHandler.addHighlight(pageNum, {
-        x: (r.left - wrapperRect.left) / scale,
-        y: (r.top  - wrapperRect.top)  / scale,
-        w: r.width  / scale,
-        h: r.height / scale,
+    // Convert to page-relative CSS pixel coords at current scale (what highlightFromSelection expects)
+    const pageRects = rects
+      .filter(r => r.width > 0.5 && r.height > 0.5)
+      .map(r => ({
+        left:   r.left   - refRect.left,
+        top:    r.top    - refRect.top,
+        right:  r.right  - refRect.left,
+        bottom: r.bottom - refRect.top,
+      }));
+
+    // Use cache geometry for accurate positioning (handles equations, transformed text, etc.)
+    const added = PDFHandler.highlightFromSelection(pageNum, pageRects);
+
+    // Fallback to raw DOM rects if no cache items matched (e.g. image-based content)
+    if (!added) {
+      const scale = PDFHandler.getScale();
+      pageRects.forEach(r => {
+        PDFHandler.addHighlight(pageNum, {
+          x: r.left  / scale,
+          y: r.top   / scale,
+          w: (r.right  - r.left) / scale,
+          h: (r.bottom - r.top)  / scale,
+        });
       });
-    });
+    }
 
     const userHlCanvas = node.querySelector('.user-hl-layer');
     PDFHandler.drawUserHighlights(pageNum, userHlCanvas);
@@ -332,6 +351,10 @@
     PDFHandler.setScale(Math.max(ZOOM_MIN, PDFHandler.getScale() - ZOOM_STEP));
     await rerenderAll();
   });
+  UI.els.zoomResetBtn.addEventListener('click', async () => {
+    PDFHandler.setScale(1.0);
+    await rerenderAll();
+  });
 
   UI.els.tocBtn.addEventListener('click', () => UI.toggleSidebar());
   document.getElementById('sidebar-close').addEventListener('click', () => UI.toggleSidebar(false));
@@ -349,7 +372,7 @@
     const tag = document.activeElement.tagName;
     if (tag === 'INPUT') return;
     if (!PDFHandler.getDoc() && e.key !== 'Escape') return;
-    const mod = e.ctrlKey || e.metaKey;
+    const mod = (e.ctrlKey || e.metaKey) && e.altKey;
     switch (e.key) {
       case '+': case '=': e.preventDefault(); PDFHandler.setScale(Math.min(ZOOM_MAX, PDFHandler.getScale() + ZOOM_STEP)); rerenderAll(); break;
       case '-':           e.preventDefault(); PDFHandler.setScale(Math.max(ZOOM_MIN, PDFHandler.getScale() - ZOOM_STEP)); rerenderAll(); break;
@@ -364,10 +387,18 @@
       case 'Home': e.preventDefault(); currentPage = 1; UI.scrollToPage(1); UI.setPageInfo(1, PDFHandler.getPageCount()); break;
       case 'End':  e.preventDefault(); currentPage = PDFHandler.getPageCount(); UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); break;
       case '0': if (mod) { PDFHandler.setScale(Storage.getSetting('defaultZoom', 150) / 100); rerenderAll(); } break;
-      case 'f': e.preventDefault(); if (mod) { UI.toggleSearch(true); } else { PDFHandler.fitToWidth(UI.els.pdfViewport.clientWidth); rerenderAll(); } break;
+      case 'f': e.preventDefault(); if (mod) { UI.toggleSearch(true); } else if (!e.ctrlKey && !e.metaKey) { PDFHandler.fitToWidth(UI.els.pdfViewport.clientWidth); rerenderAll(); } break;
       case 't': if (mod) UI.toggleSidebar(); break;
       case 's': if (mod) { e.preventDefault(); UI.toggleSearch(true); } break;
       case 'd': if (mod) applyPdfDarkMode(!Storage.getSetting('pdfDarkMode', false)); break;
+      case 'h': if (mod) {
+        e.preventDefault();
+        highlightMode = !highlightMode;
+        UI.els.highlightBtn.classList.toggle('active', highlightMode);
+        UI.els.pdfViewport.classList.toggle('highlight-mode', highlightMode);
+        UI.els.highlightPicker.classList.toggle('hidden', !highlightMode);
+        UI.els.highlightBtn.title = highlightMode ? 'Disable highlighting' : 'Enable highlighting';
+      } break;
       case 'Escape':
         if (!UI.els.searchBar.classList.contains('hidden')) {
           UI.toggleSearch(false); applySearchHighlights(''); searchResults = []; UI.setSearchStatus('');
@@ -389,10 +420,30 @@
     applyPdfDarkMode(pdfDarkModeToggle.checked);
   });
 
-  UI.els.highlightColorInput.addEventListener('input', e => {
+  UI.els.highlightColorBar.style.background = highlightColor;
+
+  UI.els.highlightColorPicker.addEventListener('input', e => {
     const hex = e.target.value;
     PDFHandler.setHighlightColor(hex);
     Storage.setSetting('highlightColor', hex);
+    UI.els.highlightColorBar.style.background = hex;
+  });
+
+  // Highlight button toggle
+  UI.els.highlightBtn.addEventListener('click', () => {
+    highlightMode = !highlightMode;
+    UI.els.highlightBtn.classList.toggle('active', highlightMode);
+    UI.els.pdfViewport.classList.toggle('highlight-mode', highlightMode);
+    UI.els.highlightPicker.classList.toggle('hidden', !highlightMode);
+    UI.els.highlightBtn.title = highlightMode ? 'Disable highlighting' : 'Enable highlighting';
+  });
+
+  // Close color picker when clicking outside
+  document.addEventListener('click', e => {
+    const highlightContainer = document.getElementById('highlight-container');
+    if (highlightContainer && !highlightContainer.contains(e.target)) {
+      UI.els.highlightPicker.classList.add('hidden');
+    }
   });
 
   UI.els.defaultZoomInput.addEventListener('change', e => {

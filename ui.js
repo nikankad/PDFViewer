@@ -22,7 +22,6 @@ const UI = (() => {
     pageTotal:       $('page-total'),
     zoomInBtn:       $('zoom-in-btn'),
     zoomOutBtn:      $('zoom-out-btn'),
-    zoomLabel:       $('zoom-label'),
     searchBtn:       $('search-btn'),
 
     // Search bar
@@ -50,10 +49,18 @@ const UI = (() => {
     settingsBtn:          $('settings-btn'),
     settingsPanel:        $('settings-panel'),
     settingsClose:        $('settings-close'),
-    highlightColorInput:  $('highlight-color-input'),
     defaultZoomInput:     $('default-zoom-input'),
     clearRecentBtn:       $('clear-recent-btn'),
     clearHighlightsBtn:   $('clear-highlights-btn'),
+
+    // Highlight
+    highlightBtn:         $('highlight-btn'),
+    highlightColorPicker: $('highlight-color-picker'),
+    highlightPicker:      $('highlight-picker'),
+    highlightColorBar:    $('highlight-color-bar'),
+
+    // Zoom
+    zoomResetBtn:         $('zoom-reset-btn'),
   };
 
   function showUpload() {
@@ -77,7 +84,7 @@ const UI = (() => {
   }
 
   function setZoom(scale) {
-    els.zoomLabel.textContent = Math.round(scale * 100) + '%';
+    els.zoomResetBtn.textContent = Math.round(scale * 100) + '%';
   }
 
   function toggleSidebar(force) {

@@ -8,7 +8,7 @@ const PDFHandler = (() => {
   let _renderTasks = {};
   let _textCache = {};      // pageNum -> {items, viewport}
   let _userHighlights = {}; // pageNum -> [{x, y, w, h, color}] at scale=1
-  let _highlightColor = 'rgba(255, 210, 0, 0.45)';
+  let _highlightColor = 'rgba(255, 210, 0, 0.28)';
 
   async function load(arrayBuffer) {
     if (_pdfDoc) {
@@ -46,15 +46,16 @@ const PDFHandler = (() => {
     const viewport = page.getViewport({ scale: _scale });
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(viewport.width * dpr);
-    canvas.height = Math.floor(viewport.height * dpr);
+    const outputScale = Math.max(dpr, 2);
+    canvas.width = Math.floor(viewport.width * outputScale);
+    canvas.height = Math.floor(viewport.height * outputScale);
     canvas.style.width = Math.floor(viewport.width) + 'px';
     canvas.style.height = Math.floor(viewport.height) + 'px';
 
     const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
+    const transform = [outputScale, 0, 0, outputScale, 0, 0];
 
-    const renderTask = page.render({ canvasContext: ctx, viewport });
+    const renderTask = page.render({ canvasContext: ctx, viewport, transform });
     _renderTasks[pageNum] = renderTask;
 
     try {
@@ -221,11 +222,78 @@ const PDFHandler = (() => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
-    _highlightColor = `rgba(${r}, ${g}, ${b}, 0.45)`;
+    _highlightColor = `rgba(${r}, ${g}, ${b}, 0.28)`;
   }
 
   function getHighlightColorHex() {
     return _highlightColor;
+  }
+
+  // Add highlights from a DOM selection by matching against cached text geometry.
+  // selRects: array of {left, top, right, bottom} in CSS pixels relative to the page at current scale.
+  // Returns true if any highlights were added.
+  function highlightFromSelection(pageNum, selRects) {
+    const cached = _textCache[pageNum];
+    if (!cached || !selRects.length) return false;
+
+    const { items, viewport } = cached;
+
+    // Collect matched segments: {x, y, right, h} all in CSS px at current scale
+    const segments = [];
+
+    for (const item of items) {
+      const [, , , scaleY, tx, ty] = item.transform;
+      const fontHeight = Math.abs(scaleY);
+      if (!fontHeight || !item.width) continue;
+
+      const [vpx, vpy] = viewport.convertToViewportPoint(tx, ty);
+      const fontHeightPx = fontHeight * _scale;
+      const itemWidthPx  = item.width  * _scale;
+
+      const iLeft   = vpx;
+      const iTop    = vpy - fontHeightPx;
+      const iRight  = vpx + itemWidthPx;
+      const iBottom = vpy + fontHeightPx * 0.2;
+
+      for (const r of selRects) {
+        if (iRight > r.left && iLeft < r.right && iBottom > r.top && iTop < r.bottom) {
+          segments.push({
+            left:  Math.max(iLeft,  r.left),
+            right: Math.min(iRight, r.right),
+            top:   iTop,
+            h:     fontHeightPx * 1.2,
+          });
+          break;
+        }
+      }
+    }
+
+    if (!segments.length) return false;
+
+    // Merge segments that share the same baseline (within 2px) into one rect per line
+    segments.sort((a, b) => a.top - b.top || a.left - b.left);
+    const lines = [];
+    for (const seg of segments) {
+      const last = lines[lines.length - 1];
+      if (last && Math.abs(seg.top - last.top) < 3) {
+        last.right = Math.max(last.right, seg.right);
+        last.h     = Math.max(last.h, seg.h);
+      } else {
+        lines.push({ ...seg });
+      }
+    }
+
+    const highlights = lines.map(l => ({
+      x: l.left  / _scale,
+      y: l.top   / _scale,
+      w: (l.right - l.left) / _scale,
+      h: l.h / _scale,
+      color: _highlightColor,
+    }));
+
+    if (!_userHighlights[pageNum]) _userHighlights[pageNum] = [];
+    _userHighlights[pageNum].push(...highlights);
+    return true;
   }
 
   // Add a persistent user highlight rect (coords at scale=1 in CSS pixels)
@@ -278,5 +346,5 @@ const PDFHandler = (() => {
     }
   }
 
-  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, getPageDimensions, getOutline, getPageForDest, search, highlightPage, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
+  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, getPageDimensions, getOutline, getPageForDest, search, highlightPage, highlightFromSelection, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
 })();

@@ -96,12 +96,24 @@
       </div>
 
       <div class="toolbar-group">
+        <div id="highlight-container" class="highlight-container">
+          <button id="highlight-btn" class="icon-btn highlight-btn" title="Enable highlighting">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.75 7L6.25 18.5 3 21.75a.75.75 0 000 1.06l1.69 1.69a.75.75 0 001.06 0l3.25-3.25L21.75 12.5"/>
+              <path d="M3 21.75l18.5-18.5"/>
+            </svg>
+            <span id="highlight-color-bar" class="highlight-color-bar"></span>
+          </button>
+          <div id="highlight-picker" class="highlight-picker hidden">
+            <input type="color" id="highlight-color-picker" value="#ffdd00" class="color-input" />
+          </div>
+        </div>
         <button id="zoom-out-btn" class="icon-btn" title="Zoom out (-)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <span id="zoom-label" class="zoom-label">100%</span>
+        <button id="zoom-reset-btn" class="zoom-label zoom-reset-btn" title="Reset to 100%">100%</button>
         <button id="zoom-in-btn" class="icon-btn" title="Zoom in (+)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -150,10 +162,6 @@
               <span class="switch-track"></span>
             </label>
           </div>
-          <div class="settings-row">
-            <label for="highlight-color-input">Highlight color</label>
-            <input type="color" id="highlight-color-input" value="#ffdd00" class="color-input" />
-          </div>
         </div>
 
         <div class="settings-section">
@@ -179,11 +187,12 @@
             <div class="shortcut-row"><div class="shortcut-keys"><kbd>[</kbd><kbd>]</kbd></div><span>Prev / Next page</span></div>
             <div class="shortcut-row"><div class="shortcut-keys"><kbd>Home</kbd><kbd>End</kbd></div><span>First / Last page</span></div>
             <div class="shortcut-row"><div class="shortcut-keys"><kbd>+</kbd><kbd>-</kbd></div><span>Zoom in / out</span></div>
-            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>0</kbd></div><span>Reset zoom</span></div>
+            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>Alt</kbd><kbd>0</kbd></div><span>Reset zoom</span></div>
             <div class="shortcut-row"><div class="shortcut-keys"><kbd>f</kbd></div><span>Fit to width</span></div>
-            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>T</kbd></div><span>Toggle contents</span></div>
-            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>F</kbd></div><span>Search</span></div>
-            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>D</kbd></div><span>Toggle dark mode</span></div>
+            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>Alt</kbd><kbd>T</kbd></div><span>Toggle contents</span></div>
+            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>Alt</kbd><kbd>F</kbd></div><span>Search</span></div>
+            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>Alt</kbd><kbd>D</kbd></div><span>Toggle dark mode</span></div>
+            <div class="shortcut-row"><div class="shortcut-keys"><kbd>⌃</kbd><kbd>Alt</kbd><kbd>H</kbd></div><span>Toggle highlight</span></div>
             <div class="shortcut-row"><div class="shortcut-keys"><kbd>Esc</kbd></div><span>Close panel</span></div>
           </div>
           <p class="shortcut-hint">⌃ = Ctrl on Windows, ⌘ on Mac</p>
