@@ -1,46 +1,6 @@
 # PDFViewer
 
-A fast, minimal PDF viewer that runs entirely in your browser. No accounts, no installs, no uploads — just open a file and read.
-
-## Motivation
-
-Most PDF readers are bloated, paywalled, or quietly uploading your documents to a server somewhere. The free ones tend to be clunky, and almost none of them have a proper dark mode. I built PDFViewer to fix all of that — a clean, fast reader that respects your privacy and doesn't cost anything.
-
-## Features
-
-- Drag and drop any PDF to open it instantly
-- Recent files reopen in one click, stored locally in your browser
-- Continuous scroll through all pages
-- Text search across the entire document with highlighted results
-- Select text to highlight it, and save highlights per document
-- Table of contents sidebar built from the PDF's outline
-- Zoom from 25% to 400%, fit-to-width, and per-document zoom memory
-- Dark mode for comfortable reading
-- Works on desktop and mobile
-
-## Keyboard shortcuts
-
-| Action | Shortcut |
-|---|---|
-| Next / previous page | `]` / `[` or arrow keys |
-| First / last page | `Home` / `End` |
-| Zoom in / out | `+` / `-` |
-| Reset zoom | `Ctrl+0` |
-| Fit to width | `F` |
-| Search | `Ctrl+F` |
-| Toggle contents | `Ctrl+T` |
-| Toggle dark mode | `Ctrl+D` |
-| Close panel | `Esc` |
-
-## Privacy
-
-Everything runs locally in your browser. Your files are never uploaded anywhere.
-
-- PDF files and highlights are stored in your browser's IndexedDB
-- Settings are stored in localStorage
-- The only external request is loading the pdf.js rendering library from a CDN — your PDF content is never transmitted
-
-To clear stored data, use **Settings → Clear recent files** or **Clear all highlights**, or clear your browser's site data for this page.
+a really simple PDF viewer I made with the main functionality of color inversion to with reading at night more comfortable
 
 ## Running locally
 
