@@ -1,5 +1,8 @@
 # PDFViewer
 
+![Screenshot 1](images/ss1.png)
+![Screenshot 2](images/ss2.png)
+
 a really simple PDF viewer I made with the main functionality of color inversion to with reading at night more comfortable
 
 ## Running locally

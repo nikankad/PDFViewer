@@ -127,12 +127,12 @@ const PDFHandler = (() => {
   }
 
   // Draw highlight rects onto the hl-layer canvas for all matches of query on pageNum.
-  // Uses the cached textContent geometry — immune to span transform/scaleX distortion.
+  // Uses the rendered text layer DOM so the browser's layout engine handles all transforms.
   function highlightPage(pageNum, hlCanvas, query) {
     const cached = _textCache[pageNum];
     if (!hlCanvas || !cached) return;
 
-    const { items, viewport } = cached;
+    const { viewport } = cached;
     const dpr = window.devicePixelRatio || 1;
     const w = Math.floor(viewport.width);
     const h = Math.floor(viewport.height);
@@ -148,72 +148,29 @@ const PDFHandler = (() => {
 
     if (!query || !query.trim()) return;
 
+    const wrapper = document.querySelector(`.page-wrapper[data-page="${pageNum}"]`);
+    if (!wrapper) return;
+    const textLayer = wrapper.querySelector('.textLayer');
+    if (!textLayer) return;
+
+    const pageRect = wrapper.getBoundingClientRect();
+    ctx.fillStyle = 'rgba(255, 210, 0, 0.45)';
     const q = query.toLowerCase();
 
-    // Build flat array of {char, itemIndex, charIndexInItem} for every char across all items
-    // and the full concatenated string for searching
-    const chars = [];
-    let fullText = '';
-    items.forEach((item, iIdx) => {
-      const s = item.str || '';
-      for (let c = 0; c < s.length; c++) {
-        chars.push({ itemIndex: iIdx, charIndexInItem: c });
-      }
-      fullText += s;
-    });
-
-    // Find all match positions in the full text
-    const matches = [];
-    let pos = 0, idx;
-    while ((idx = fullText.toLowerCase().indexOf(q, pos)) !== -1) {
-      matches.push({ start: idx, end: idx + q.length });
-      pos = idx + 1;
-    }
-    if (!matches.length) return;
-
-    ctx.fillStyle = 'rgba(255, 210, 0, 0.45)';
-
-    for (const { start, end } of matches) {
-      // Group consecutive chars that belong to the same item
-      let segStart = start;
-      while (segStart < end) {
-        const itemIdx = chars[segStart].itemIndex;
-        let segEnd = segStart + 1;
-        while (segEnd < end && chars[segEnd].itemIndex === itemIdx) segEnd++;
-
-        const item = items[itemIdx];
-        const itemStr = item.str || '';
-        const itemCharCount = itemStr.length;
-        if (!itemCharCount) { segStart = segEnd; continue; }
-
-        // item.transform = [scaleX, 0, 0, scaleY, tx, ty] in PDF user space
-        // viewport.convertToViewportPoint converts PDF coords to CSS pixel coords
-        const [, , , scaleY, tx, ty] = item.transform;
-        const fontHeight = Math.abs(scaleY);
-
-        // Fraction of item width covered by this segment
-        const charStart = chars[segStart].charIndexInItem;
-        const charEnd   = chars[segEnd - 1].charIndexInItem + 1;
-        const fracStart = charStart / itemCharCount;
-        const fracEnd   = charEnd   / itemCharCount;
-
-        // item.width is in PDF user space units
-        const itemWidthPx = item.width * _scale;
-        const segX = fracStart * itemWidthPx;
-        const segW = (fracEnd - fracStart) * itemWidthPx;
-
-        // Convert PDF origin (bottom-left) to canvas origin (top-left)
-        const [vpx, vpy] = viewport.convertToViewportPoint(tx, ty);
-        const fontHeightPx = fontHeight * _scale;
-
-        ctx.fillRect(
-          vpx + segX,
-          vpy - fontHeightPx,
-          segW,
-          fontHeightPx * 1.1
-        );
-
-        segStart = segEnd;
+    for (const span of textLayer.querySelectorAll('span')) {
+      const node = span.firstChild;
+      if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+      const text = node.nodeValue;
+      const textLower = text.toLowerCase();
+      let pos = 0, idx;
+      while ((idx = textLower.indexOf(q, pos)) !== -1) {
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + q.length);
+        for (const r of range.getClientRects()) {
+          ctx.fillRect(r.left - pageRect.left, r.top - pageRect.top, r.width, r.height);
+        }
+        pos = idx + 1;
       }
     }
   }
@@ -229,70 +186,27 @@ const PDFHandler = (() => {
     return _highlightColor;
   }
 
-  // Add highlights from a DOM selection by matching against cached text geometry.
+  // Add highlights from a DOM selection.
   // selRects: array of {left, top, right, bottom} in CSS pixels relative to the page at current scale.
+  // Coords are normalized to scale=1 for storage so they redraw correctly after zoom.
   // Returns true if any highlights were added.
   function highlightFromSelection(pageNum, selRects) {
-    const cached = _textCache[pageNum];
-    if (!cached || !selRects.length) return false;
+    if (!selRects.length) return false;
 
-    const { items, viewport } = cached;
+    const toAdd = selRects
+      .filter(r => (r.right - r.left) > 1 && (r.bottom - r.top) > 1)
+      .map(r => ({
+        x: r.left              / _scale,
+        y: r.top               / _scale,
+        w: (r.right  - r.left) / _scale,
+        h: (r.bottom - r.top)  / _scale,
+        color: _highlightColor,
+      }));
 
-    // Collect matched segments: {x, y, right, h} all in CSS px at current scale
-    const segments = [];
-
-    for (const item of items) {
-      const [, , , scaleY, tx, ty] = item.transform;
-      const fontHeight = Math.abs(scaleY);
-      if (!fontHeight || !item.width) continue;
-
-      const [vpx, vpy] = viewport.convertToViewportPoint(tx, ty);
-      const fontHeightPx = fontHeight * _scale;
-      const itemWidthPx  = item.width  * _scale;
-
-      const iLeft   = vpx;
-      const iTop    = vpy - fontHeightPx;
-      const iRight  = vpx + itemWidthPx;
-      const iBottom = vpy + fontHeightPx * 0.2;
-
-      for (const r of selRects) {
-        if (iRight > r.left && iLeft < r.right && iBottom > r.top && iTop < r.bottom) {
-          segments.push({
-            left:  Math.max(iLeft,  r.left),
-            right: Math.min(iRight, r.right),
-            top:   iTop,
-            h:     fontHeightPx * 1.2,
-          });
-          break;
-        }
-      }
-    }
-
-    if (!segments.length) return false;
-
-    // Merge segments that share the same baseline (within 2px) into one rect per line
-    segments.sort((a, b) => a.top - b.top || a.left - b.left);
-    const lines = [];
-    for (const seg of segments) {
-      const last = lines[lines.length - 1];
-      if (last && Math.abs(seg.top - last.top) < 3) {
-        last.right = Math.max(last.right, seg.right);
-        last.h     = Math.max(last.h, seg.h);
-      } else {
-        lines.push({ ...seg });
-      }
-    }
-
-    const highlights = lines.map(l => ({
-      x: l.left  / _scale,
-      y: l.top   / _scale,
-      w: (l.right - l.left) / _scale,
-      h: l.h / _scale,
-      color: _highlightColor,
-    }));
+    if (!toAdd.length) return false;
 
     if (!_userHighlights[pageNum]) _userHighlights[pageNum] = [];
-    _userHighlights[pageNum].push(...highlights);
+    _userHighlights[pageNum].push(...toAdd);
     return true;
   }
 
@@ -318,18 +232,12 @@ const PDFHandler = (() => {
   function drawUserHighlights(pageNum, userHlCanvas) {
     if (!userHlCanvas) return;
     const cached = _textCache[pageNum];
-    const highlights = _userHighlights[pageNum] || [];
+    if (!cached) return;
 
+    const highlights = _userHighlights[pageNum] || [];
     const dpr = window.devicePixelRatio || 1;
-    let w, h;
-    if (cached) {
-      w = Math.floor(cached.viewport.width);
-      h = Math.floor(cached.viewport.height);
-    } else {
-      w = userHlCanvas.offsetWidth || 0;
-      h = userHlCanvas.offsetHeight || 0;
-    }
-    if (!w || !h) return;
+    const w = Math.floor(cached.viewport.width);
+    const h = Math.floor(cached.viewport.height);
 
     userHlCanvas.width  = w * dpr;
     userHlCanvas.height = h * dpr;
