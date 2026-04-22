@@ -15,20 +15,27 @@
 
   // ── Settings init ────────────────────────────────────
 
+  const backgroundColor = Storage.getSetting('backgroundColor', '#1a1a1a');
   const defaultZoomPct = Storage.getSetting('defaultZoom', 150);
   const highlightColor = Storage.getSetting('highlightColor', '#ffdd00');
+  UI.els.backgroundColorInput.value = backgroundColor;
   UI.els.defaultZoomInput.value = defaultZoomPct;
   UI.els.highlightColorPicker.value = highlightColor;
   PDFHandler.setHighlightColor(highlightColor);
 
-  const pdfDarkModeToggle = document.getElementById('pdf-dark-mode-toggle');
+  function applyBackgroundColor(color) {
+    document.documentElement.style.setProperty('--bg', color);
+    UI.els.backgroundColorInput.value = color;
+    Storage.setSetting('backgroundColor', color);
+  }
 
   function applyPdfDarkMode(on) {
     UI.els.pdfViewport.classList.toggle('pdf-dark-mode', on);
-    pdfDarkModeToggle.checked = on;
+    UI.els.darkModeBtn.classList.toggle('active', on);
     Storage.setSetting('pdfDarkMode', on);
   }
 
+  applyBackgroundColor(backgroundColor);
   applyPdfDarkMode(Storage.getSetting('pdfDarkMode', false));
 
   // ── File loading ─────────────────────────────────────
@@ -330,6 +337,7 @@
 
   UI.els.openBtn.addEventListener('click', () => UI.els.fileInputViewer.click());
   UI.els.fileInputViewer.addEventListener('change', e => openFile(e.target.files[0]));
+  UI.els.homeBtn.addEventListener('click', () => UI.showUpload());
 
   UI.els.prevBtn.addEventListener('click', () => {
     if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); }
@@ -416,8 +424,12 @@
   UI.els.settingsBtn.addEventListener('click', () => UI.toggleSettings());
   document.getElementById('settings-close').addEventListener('click', () => UI.toggleSettings(false));
 
-  pdfDarkModeToggle.addEventListener('change', () => {
-    applyPdfDarkMode(pdfDarkModeToggle.checked);
+  UI.els.darkModeBtn.addEventListener('click', () => {
+    applyPdfDarkMode(!Storage.getSetting('pdfDarkMode', false));
+  });
+
+  UI.els.backgroundColorInput.addEventListener('input', e => {
+    applyBackgroundColor(e.target.value);
   });
 
   UI.els.highlightColorBar.style.background = highlightColor;

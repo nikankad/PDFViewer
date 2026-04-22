@@ -15,6 +15,7 @@ const UI = (() => {
     loading:         $('loading'),
 
     // Toolbar
+    homeBtn:         $('home-btn'),
     tocBtn:          $('toc-btn'),
     prevBtn:         $('prev-btn'),
     nextBtn:         $('next-btn'),
@@ -35,6 +36,7 @@ const UI = (() => {
     // Sidebar
     sidebar:         $('sidebar'),
     sidebarClose:    $('sidebar-close'),
+    tocSearchInput:  $('toc-search-input'),
     tocList:         $('toc-list'),
 
     // Pages
@@ -46,9 +48,11 @@ const UI = (() => {
     recentList:      $('recent-list'),
 
     // Settings
+    darkModeBtn:          $('dark-mode-btn'),
     settingsBtn:          $('settings-btn'),
     settingsPanel:        $('settings-panel'),
     settingsClose:        $('settings-close'),
+    backgroundColorInput: $('background-color-input'),
     defaultZoomInput:     $('default-zoom-input'),
     clearRecentBtn:       $('clear-recent-btn'),
     clearHighlightsBtn:   $('clear-highlights-btn'),
@@ -113,27 +117,58 @@ const UI = (() => {
     els.searchStatus.textContent = text;
   }
 
-  // Build TOC from pdf.js outline
-  async function buildTOC(outline, onItemClick) {
+  let tocOutline = [];
+  let tocClickHandler = null;
+
+  function renderTOC(query = '') {
     els.tocList.innerHTML = '';
-    if (!outline || outline.length === 0) {
+
+    if (!tocOutline.length) {
       els.tocList.innerHTML = '<p class="toc-empty">No outline available</p>';
       return;
     }
+
+    const normalizedQuery = query.trim().toLowerCase();
+    let matches = 0;
+
     function renderItems(items, level) {
       items.forEach(item => {
-        const btn = document.createElement('button');
-        btn.className = 'toc-item';
-        btn.textContent = item.title;
-        btn.dataset.level = level;
-        btn.title = item.title;
-        btn.addEventListener('click', () => onItemClick(item.dest));
-        els.tocList.appendChild(btn);
+        const title = item.title || 'Untitled';
+        const titleMatches = !normalizedQuery || title.toLowerCase().includes(normalizedQuery);
+
+        if (titleMatches) {
+          const btn = document.createElement('button');
+          btn.className = 'toc-item';
+          btn.textContent = title;
+          btn.dataset.level = level;
+          btn.title = title;
+          btn.addEventListener('click', () => tocClickHandler(item.dest));
+          els.tocList.appendChild(btn);
+          matches++;
+        }
+
         if (item.items && item.items.length) renderItems(item.items, level + 1);
       });
     }
-    renderItems(outline, 0);
+
+    renderItems(tocOutline, 0);
+
+    if (matches === 0) {
+      els.tocList.innerHTML = '<p class="toc-empty">No matching sections</p>';
+    }
   }
+
+  // Build TOC from pdf.js outline
+  async function buildTOC(outline, onItemClick) {
+    tocOutline = outline || [];
+    tocClickHandler = onItemClick;
+    if (els.tocSearchInput) els.tocSearchInput.value = '';
+    renderTOC();
+  }
+
+  els.tocSearchInput.addEventListener('input', e => {
+    renderTOC(e.target.value);
+  });
 
   // Create a lightweight placeholder wrapper so scroll height is correct before rendering
   function createPlaceholder(pageNum, width, height) {
