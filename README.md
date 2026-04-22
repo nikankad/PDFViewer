@@ -5,6 +5,7 @@
 
 a really simple PDF viewer I made with the main functionality of color inversion to with reading at night more comfortable
 
+nikankad.github.io/PDFViewer/ 
 ## Running locally
 
 ```bash
