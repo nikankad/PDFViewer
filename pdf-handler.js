@@ -46,7 +46,7 @@ const PDFHandler = (() => {
     const viewport = page.getViewport({ scale: _scale });
 
     const dpr = window.devicePixelRatio || 1;
-    const outputScale = Math.max(dpr, 2);
+    const outputScale = Math.max(dpr, 3);
     canvas.width = Math.floor(viewport.width * outputScale);
     canvas.height = Math.floor(viewport.height * outputScale);
     canvas.style.width = Math.floor(viewport.width) + 'px';
