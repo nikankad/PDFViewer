@@ -1,26 +1,28 @@
-<claude-mem-context>
-# Memory Context
+# PDFViewer Agent Notes
 
-# [PDFViewer] recent context, 2026-04-24 6:34pm EDT
+## Run And Verify
+- Local dev is a static server only: `python3 -m http.server 8000`, then open `http://localhost:8000`.
+- There is no build step and `package.json` defines no npm scripts; do not invent `npm test`, `npm run build`, or lint commands.
+- Focused JS syntax check: `node --check app.js`, `node --check ui.js`, `node --check storage.js`, `node --check pdf-handler.js`.
+- Visual/browser verification matters for PDF loading, drag/drop, IndexedDB persistence, and responsive layout because there is no automated test suite.
 
-Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
-Format: ID TIME TYPE TITLE
-Fetch details: get_observations([IDs]) | Search: mem-search skill
+## Architecture
+- `index.html` is the app shell and controls script order: pdf.js CDN, then `storage.js`, `pdf-handler.js`, `ui.js`, `app.js`.
+- `app.js` wires events and coordinates file open, recent-file rendering, search, zoom, highlights, and settings.
+- `ui.js` owns DOM construction and UI state helpers; keep markup changes there unless the static shell itself changes.
+- `pdf-handler.js` is the pdf.js wrapper for document loading, lazy page rendering, text search/highlights, and cover thumbnail rendering.
+- `storage.js` is the persistence layer: PDFs/covers/tags in IndexedDB, highlights in a separate IndexedDB store, settings in `localStorage`.
 
-Stats: 11 obs (4,227t read) | 35,627t work | 88% savings
+## Theme And UI Direction
+- Preserve the dark, flat visual style; avoid brown/wood bookshelf styling or skeuomorphic textures.
+- The upload screen is a library layout: recent PDFs/bookcase on the left and the PDF drop zone on the right.
+- Recent PDFs display first-page cover thumbnails, tags, and tag search; avoid replacing this with a plain file list.
+- Keep the layout responsive: desktop uses side-by-side library/drop zone, while small screens stack naturally.
 
-### Apr 24, 2026
-73 6:14p 🔵 PDFViewer Git History State Before Revert Investigation
-74 6:17p 🔵 PDFViewer Project Structure and Git State Before Revert
-75 6:18p ⚖️ PDFViewer Upload Screen Redesign: Bookshelf UI Design Choices
-76 6:19p 🔵 IndexedDB Schema Lacks Cover Field — Migration Required for Thumbnail Feature
-77 6:20p 🟣 Bookshelf UI Implemented: Cover Thumbnails, Library Header, Compact Open Button
-78 6:21p 🔴 Fixed storage.saveCover() Race Condition — put() Was Not Awaited
-79 " 🔵 Python HTTP Dev Server Blocked by macOS Sandbox on Port 8000
-80 6:22p 🔵 Port 8000 Already in Use — Escalated Permission Succeeded But Address Taken
-81 6:32p 🟣 Recent Files Section Redesigned as Library Bookshelf UI
-82 6:33p 🔵 PDFViewer Recent Files — Existing Implementation Baseline
-83 6:34p 🔵 PDFViewer Full Architecture Map Before Bookshelf Redesign
-
-Access 36k tokens of past work via get_observations([IDs]) or mem-search skill.
-</claude-mem-context>
+## Repo-Specific Gotchas
+- Runtime pdf.js is loaded from jsDelivr in `index.html`; `package-lock.json` exists, but the browser app does not import `node_modules` directly.
+- The CSP in `index.html` must allow any new script, worker, image, font, or network source you introduce.
+- IndexedDB database name is `pdfviewer`; schema version is `DB_VERSION` in `storage.js`. Bump it only when object stores/indexes need migration.
+- Recent PDF covers are stored as data URLs on file records; avoid regenerating covers unless the record has no `cover`.
+- `Storage.saveFile()` preserves an existing file's `cover` and `tags` when reopening the same PDF; keep that behavior when touching save logic.
+- Page rendering is lazy via `IntersectionObserver`; avoid eager full-document canvas rendering for large PDFs.

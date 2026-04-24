@@ -12,6 +12,7 @@
   let searchResults    = [];
   let searchIndex      = 0;
   let highlightMode    = false;
+  let recentSearchQuery = '';
 
   // ── Settings init ────────────────────────────────────
 
@@ -70,7 +71,6 @@
 
   async function openFile(file) {
     if (!file || file.type !== 'application/pdf') {
-      alert('Please open a valid PDF file.');
       return;
     }
     UI.setLoading(true);
@@ -349,13 +349,67 @@
     }
   }
 
+  function parseTags(value) {
+    const seen = new Set();
+    return value
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => {
+        const key = tag.toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function filterRecentFiles(files) {
+    const q = recentSearchQuery.trim().toLowerCase();
+    if (!q) return files;
+    return files.filter(f => {
+      const nameMatches = f.name.toLowerCase().includes(q);
+      const tagMatches = (f.tags || []).some(tag => tag.toLowerCase().includes(q));
+      return nameMatches || tagMatches;
+    });
+  }
+
+  function getRecentTags(files) {
+    const tags = new Map();
+    files.forEach(f => {
+      (f.tags || []).forEach(tag => {
+        const key = tag.toLowerCase();
+        if (!tags.has(key)) tags.set(key, tag);
+      });
+    });
+    return Array.from(tags.values()).sort((a, b) => a.localeCompare(b));
+  }
+
+  async function editRecentTags(id, tags) {
+    const input = prompt('Tags separated by commas', (tags || []).join(', '));
+    if (input === null) return;
+    await Storage.saveTags(id, parseTags(input));
+    await refreshRecentList();
+  }
+
+  function renderRecentFiles(files) {
+    UI.renderRecent(filterRecentFiles(files), openFromRecent, async id => {
+      await Storage.deleteFile(id);
+      await refreshRecentList();
+    }, editRecentTags, recentSearchQuery, query => {
+      recentSearchQuery = query;
+      renderRecentFiles(files);
+      requestAnimationFrame(() => {
+        const search = UI.els.recentList.querySelector('.recent-search');
+        if (!search) return;
+        search.focus();
+        search.setSelectionRange(search.value.length, search.value.length);
+      });
+    }, getRecentTags(files));
+  }
+
   async function refreshRecentList() {
     const files = await Storage.listRecent();
     await backfillRecentCovers(files);
-    UI.renderRecent(files, openFromRecent, async id => {
-      await Storage.deleteFile(id);
-      await refreshRecentList();
-    }, () => UI.els.fileInput.click());
+    renderRecentFiles(files);
   }
 
   // ── Event wiring ─────────────────────────────────────
@@ -374,11 +428,9 @@
     openFile(e.dataTransfer.files[0]);
   });
 
-  document.addEventListener('dragover', e => { e.preventDefault(); UI.els.dropOverlay.classList.remove('hidden'); });
-  document.addEventListener('dragleave', e => { if (!e.relatedTarget) UI.els.dropOverlay.classList.add('hidden'); });
+  document.addEventListener('dragover', e => { e.preventDefault(); });
   document.addEventListener('drop', e => {
     e.preventDefault();
-    UI.els.dropOverlay.classList.add('hidden');
     openFile(e.dataTransfer.files[0]);
   });
 

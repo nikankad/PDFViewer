@@ -40,14 +40,27 @@ const Storage = (() => {
 
   async function saveFile(name, arrayBuffer) {
     const id = await sha256(arrayBuffer);
-    await tx('files', 'readwrite', store => store.put({
-      id,
-      name,
-      size: arrayBuffer.byteLength,
-      lastOpened: Date.now(),
-      bytes: arrayBuffer,
-      tags: [],
-    }));
+    const db = await open();
+    await new Promise((resolve, reject) => {
+      const t = db.transaction('files', 'readwrite');
+      const store = t.objectStore('files');
+      const getReq = store.get(id);
+      getReq.onsuccess = e => {
+        const existing = e.target.result || {};
+        const putReq = store.put({
+          id,
+          name,
+          size: arrayBuffer.byteLength,
+          lastOpened: Date.now(),
+          bytes: arrayBuffer,
+          cover: existing.cover,
+          tags: existing.tags || [],
+        });
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = err => reject(err.target.error);
+      };
+      getReq.onerror = e => reject(e.target.error);
+    });
     return id;
   }
 

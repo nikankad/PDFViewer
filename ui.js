@@ -217,12 +217,8 @@ const UI = (() => {
   }
 
   // Render recent files list. Calls onOpen(id) or onDelete(id).
-  function renderRecent(files, onOpen, onDelete, onOpenPdf) {
+  function renderRecent(files, onOpen, onDelete, onEditTags, searchQuery = '', onSearch = () => {}, legendTags = []) {
     if (!els.recentList) return;
-    if (!files.length) {
-      els.recentList.classList.add('hidden');
-      return;
-    }
     els.recentList.classList.remove('hidden');
     els.recentList.innerHTML = '';
 
@@ -231,11 +227,47 @@ const UI = (() => {
     const title = document.createElement('div');
     title.className = 'recent-title-wrap';
     title.innerHTML = '<p class="recent-label">Recent Library</p>';
+    const search = document.createElement('input');
+    search.className = 'recent-search';
+    search.type = 'search';
+    search.placeholder = 'Search files or tags';
+    search.value = searchQuery;
+    search.addEventListener('input', e => onSearch(e.target.value));
     header.appendChild(title);
+    header.appendChild(search);
     els.recentList.appendChild(header);
+
+    if (legendTags.length) {
+      const legend = document.createElement('div');
+      legend.className = 'recent-tag-legend';
+      const label = document.createElement('span');
+      label.className = 'recent-tag-legend-label';
+      label.textContent = 'Tags';
+      legend.appendChild(label);
+      legendTags.forEach(tag => {
+        const btn = document.createElement('button');
+        btn.className = 'recent-tag-legend-pill';
+        btn.type = 'button';
+        btn.textContent = tag;
+        applyTagColor(btn, tag);
+        const active = searchQuery.trim().toLowerCase() === tag.toLowerCase();
+        btn.classList.toggle('active', active);
+        btn.addEventListener('click', () => onSearch(active ? '' : tag));
+        legend.appendChild(btn);
+      });
+      els.recentList.appendChild(legend);
+    }
 
     const shelf = document.createElement('div');
     shelf.className = 'recent-shelf';
+    if (!files.length) {
+      const empty = document.createElement('p');
+      empty.className = 'recent-empty';
+      empty.textContent = searchQuery ? 'No PDFs match that search.' : 'No recent PDFs yet.';
+      shelf.appendChild(empty);
+      els.recentList.appendChild(shelf);
+      return;
+    }
     files.forEach(f => {
       const card = document.createElement('div');
       card.className = 'recent-card';
@@ -267,7 +299,35 @@ const UI = (() => {
       metaSpan.textContent = `${formatDate(f.lastOpened)} \u00b7 ${formatSize(f.size)}`;
       info.appendChild(nameSpan);
       info.appendChild(metaSpan);
+      if (f.tags && f.tags.length) {
+        const tags = document.createElement('span');
+        tags.className = 'recent-tags';
+        f.tags.slice(0, 3).forEach(tag => {
+          const pill = document.createElement('span');
+          pill.className = 'recent-tag';
+          pill.textContent = tag;
+          applyTagColor(pill, tag);
+          tags.appendChild(pill);
+        });
+        if (f.tags.length > 3) {
+          const more = document.createElement('span');
+          more.className = 'recent-tag';
+          more.textContent = `+${f.tags.length - 3}`;
+          tags.appendChild(more);
+        }
+        info.appendChild(tags);
+      }
       info.addEventListener('click', () => onOpen(f.id));
+
+      const tagBtn = document.createElement('button');
+      tagBtn.className = 'recent-tag-edit';
+      tagBtn.type = 'button';
+      tagBtn.textContent = 'Tags';
+      tagBtn.title = 'Edit tags';
+      tagBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        onEditTags(f.id, f.tags || []);
+      });
 
       const del = document.createElement('button');
       del.className = 'recent-delete icon-btn';
@@ -279,6 +339,7 @@ const UI = (() => {
 
       card.appendChild(cover);
       card.appendChild(info);
+      card.appendChild(tagBtn);
       card.appendChild(del);
       shelf.appendChild(card);
     });
@@ -288,6 +349,16 @@ const UI = (() => {
   function escapeHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  function applyTagColor(el, tag) {
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) % 360;
+    const hue = hash;
+    el.style.borderColor = `hsla(${hue}, 78%, 62%, 0.45)`;
+    el.style.background = `hsla(${hue}, 78%, 48%, 0.18)`;
+    el.style.color = `hsl(${hue}, 92%, 82%)`;
+  }
+
   function formatDate(ts) {
     const d = new Date(ts);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
