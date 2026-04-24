@@ -92,6 +92,27 @@ const PDFHandler = (() => {
     return { width: Math.floor(viewport.width), height: Math.floor(viewport.height) };
   }
 
+  async function renderCover(width = 96) {
+    if (!_pdfDoc) return null;
+    const page = await _pdfDoc.getPage(1);
+    const naturalViewport = page.getViewport({ scale: 1.0 });
+    const scale = width / naturalViewport.width;
+    const viewport = page.getViewport({ scale });
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      transform: [dpr, 0, 0, dpr, 0, 0],
+    }).promise;
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }
+
   async function getOutline() {
     if (!_pdfDoc) return [];
     return (await _pdfDoc.getOutline()) || [];
@@ -254,5 +275,5 @@ const PDFHandler = (() => {
     }
   }
 
-  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, getPageDimensions, getOutline, getPageForDest, search, highlightPage, highlightFromSelection, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
+  return { load, getDoc, getPageCount, getScale, setScale, fitToWidth, renderPage, renderCover, getPageDimensions, getOutline, getPageForDest, search, highlightPage, highlightFromSelection, addHighlight, getHighlights, setHighlights, clearHighlights, drawUserHighlights, setHighlightColor, getHighlightColorHex };
 })();

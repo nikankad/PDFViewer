@@ -88,16 +88,26 @@ html, body {
 
 /* ── Upload screen ───────────────────────────────────── */
 .upload-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(220px, 1fr);
+  grid-template-rows: auto minmax(560px, 1fr) auto auto;
+  grid-template-areas:
+    "brand brand"
+    "bookcase dropzone"
+    "disclaimer disclaimer"
+    "credit credit";
+  align-items: stretch;
   justify-content: center;
-  gap: 32px;
+  gap: 18px;
   height: 100vh;
-  padding: 24px;
+  padding: 18px 24px 24px;
+  overflow: auto;
 }
 
 .upload-brand {
+  grid-area: brand;
+  grid-column: 1 / -1;
+  justify-content: center;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -108,19 +118,25 @@ html, body {
 }
 
 .drop-zone {
+  grid-area: dropzone;
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   border: 1px dashed var(--border);
   border-radius: 8px;
-  padding: 48px 64px;
+  padding: 22px 32px;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
   color: var(--text-muted);
   text-align: center;
   width: 100%;
-  max-width: 400px;
+  max-width: none;
+  min-height: 0;
+  height: 100%;
 }
 .drop-zone:hover, .drop-zone.dragover {
   border-color: var(--accent);
@@ -139,12 +155,33 @@ html, body {
 }
 
 .upload-disclaimer {
+  grid-area: disclaimer;
+  grid-column: 1 / -1;
+  justify-self: center;
   font-size: 12px;
   color: var(--text-muted);
   text-align: center;
-  max-width: 360px;
+  max-width: 520px;
   line-height: 1.5;
   opacity: 0.7;
+}
+
+.upload-credit {
+  grid-area: credit;
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: -10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.78;
+}
+.upload-credit a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.upload-credit a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ── Viewer screen ───────────────────────────────────── */
@@ -672,68 +709,155 @@ kbd {
 
 /* ── Recent files ────────────────────────────────────── */
 .recent-list {
+  grid-area: bookcase;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: stretch;
   width: 100%;
-  max-width: 400px;
+  max-width: none;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+}
+.recent-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  padding: 8px 14px 8px 18px;
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.recent-title-wrap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
 }
 .recent-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-  padding: 0 4px 4px;
+  margin: 0;
+}
+.recent-subtitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+.recent-shelf {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-auto-rows: 250px;
+  align-items: end;
+  gap: 0 24px;
+  min-height: 556px;
+  padding: 20px 42px 36px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 174px, #444 174px 176px, #242424 176px 186px, #181818 186px 192px, transparent 192px 250px),
+    linear-gradient(180deg, #252525, #1f1f1f);
 }
 .recent-card {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  transition: border-color 0.15s;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  height: 250px;
+  padding: 4px 0 0;
+  border-bottom: none;
+  box-shadow: none;
+  transition: transform 0.16s ease;
 }
 .recent-card:hover {
-  border-color: var(--accent);
+  background: transparent;
+  transform: translateY(-4px);
+}
+.recent-cover {
+  width: 64px;
+  height: 92px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  background: #f4f1ea;
+  color: #6f6a60;
+  cursor: pointer;
+  overflow: hidden;
+  transform: perspective(420px) rotateY(-4deg);
+  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.35), inset 5px 0 0 rgba(0, 0, 0, 0.09);
+}
+.recent-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  display: block;
 }
 .recent-info {
-  flex: 1;
+  width: 100%;
+  height: 34px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 2px;
+  padding: 0;
   background: none;
   border: none;
   color: var(--text);
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   min-width: 0;
 }
-.recent-info svg { flex-shrink: 0; color: var(--text-muted); }
 .recent-name {
-  flex: 1;
-  font-size: 13px;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .recent-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
 }
 .recent-delete {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
   color: var(--text-muted);
-  border-left: 1px solid var(--border);
-  border-radius: 0;
+  background: rgba(0, 0, 0, 0.36);
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
 }
-.recent-delete:hover { color: #ff6b6b; background: transparent; }
+.recent-card:hover .recent-delete {
+  opacity: 1;
+}
+.recent-delete:hover { color: #fff; background: rgba(190, 45, 45, 0.82); }
 
 /* ── Mobile ──────────────────────────────────────────── */
 @media (max-width: 600px) {
@@ -741,4 +865,33 @@ kbd {
   .drop-zone { padding: 36px 24px; }
   .sidebar { width: 100vw; }
   .pages-container { padding: 12px 0; gap: 8px; }
+  .upload-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px;
+  }
+  .drop-zone {
+    width: 100%;
+    max-width: calc(100vw - 28px);
+    min-height: 180px;
+    height: auto;
+  }
+  .recent-list { max-width: calc(100vw - 28px); }
+  .recent-header { padding: 8px 10px; }
+  .recent-title-wrap { position: static; transform: none; text-align: left; }
+  .recent-subtitle { font-size: 16px; }
+  .recent-shelf {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    grid-auto-rows: 200px;
+    gap: 0 10px;
+    min-height: 470px;
+    padding: 16px 18px 28px;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 138px, #444 138px 140px, #242424 140px 150px, #181818 150px 156px, transparent 156px 200px),
+      linear-gradient(180deg, #252525, #1f1f1f);
+  }
+  .recent-card { height: 200px; padding-top: 0; gap: 8px; }
+  .recent-cover { width: 50px; height: 72px; }
+  .recent-name { font-size: 11px; }
 }

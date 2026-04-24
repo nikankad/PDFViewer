@@ -2,7 +2,7 @@
 
 const Storage = (() => {
   const DB_NAME    = 'pdfviewer';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   let _db = null;
 
   function open() {
@@ -46,6 +46,7 @@ const Storage = (() => {
       size: arrayBuffer.byteLength,
       lastOpened: Date.now(),
       bytes: arrayBuffer,
+      tags: [],
     }));
     return id;
   }
@@ -65,6 +66,42 @@ const Storage = (() => {
     });
   }
 
+  async function saveCover(id, cover) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction('files', 'readwrite');
+      const store = t.objectStore('files');
+      const getReq = store.get(id);
+      getReq.onsuccess = e => {
+        const rec = e.target.result;
+        if (!rec) { resolve(); return; }
+        rec.cover = cover;
+        const putReq = store.put(rec);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = err => reject(err.target.error);
+      };
+      getReq.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function saveTags(id, tags) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction('files', 'readwrite');
+      const store = t.objectStore('files');
+      const getReq = store.get(id);
+      getReq.onsuccess = e => {
+        const rec = e.target.result;
+        if (!rec) { resolve(); return; }
+        rec.tags = tags;
+        const putReq = store.put(rec);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = err => reject(err.target.error);
+      };
+      getReq.onerror = e => reject(e.target.error);
+    });
+  }
+
   async function getFile(id) {
     const rec = await tx('files', 'readonly', store => store.get(id));
     return rec ? rec.bytes : null;
@@ -77,7 +114,14 @@ const Storage = (() => {
       const store = t.objectStore('files');
       const req = store.getAll();
       req.onsuccess = e => {
-        const all = e.target.result.map(({ id, name, size, lastOpened }) => ({ id, name, size, lastOpened }));
+        const all = e.target.result.map(({ id, name, size, lastOpened, cover, tags }) => ({
+          id,
+          name,
+          size,
+          lastOpened,
+          cover,
+          tags: tags || [],
+        }));
         all.sort((a, b) => b.lastOpened - a.lastOpened);
         resolve(all);
       };
@@ -118,5 +162,5 @@ const Storage = (() => {
     localStorage.setItem('pdfviewer.' + key, JSON.stringify(val));
   }
 
-  return { saveFile, touchFile, getFile, listRecent, deleteFile, saveHighlights, getHighlights, sha256, clearAllHighlights, getSetting, setSetting };
+  return { saveFile, touchFile, saveCover, saveTags, getFile, listRecent, deleteFile, saveHighlights, getHighlights, sha256, clearAllHighlights, getSetting, setSetting };
 })();

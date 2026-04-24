@@ -42,6 +42,10 @@
 
   async function openFromBuffer(buf, name) {
     await PDFHandler.load(buf);
+    if (currentFileId) {
+      const cover = await PDFHandler.renderCover(96);
+      if (cover) await Storage.saveCover(currentFileId, cover);
+    }
     currentPage = 1;
     PDFHandler.setScale(Storage.getSetting('defaultZoom', 150) / 100);
     UI.showViewer();
@@ -303,12 +307,55 @@
 
   // ── Recent files ─────────────────────────────────────
 
+  async function renderCoverFromBuffer(buf, width = 96) {
+    const doc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+    try {
+      const page = await doc.getPage(1);
+      const naturalViewport = page.getViewport({ scale: 1.0 });
+      const scale = width / naturalViewport.width;
+      const viewport = page.getViewport({ scale });
+      const dpr = window.devicePixelRatio || 1;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({
+        canvasContext: ctx,
+        viewport,
+        transform: [dpr, 0, 0, dpr, 0, 0],
+      }).promise;
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } finally {
+      doc.destroy();
+    }
+  }
+
+  async function backfillRecentCovers(files) {
+    for (const f of files) {
+      if (f.cover) continue;
+      try {
+        const buf = await Storage.getFile(f.id);
+        if (!buf) continue;
+        const cover = await renderCoverFromBuffer(buf, 120);
+        if (cover) {
+          await Storage.saveCover(f.id, cover);
+          f.cover = cover;
+        }
+      } catch (err) {
+        console.warn('Failed to generate recent cover', f.name, err);
+      }
+    }
+  }
+
   async function refreshRecentList() {
     const files = await Storage.listRecent();
+    await backfillRecentCovers(files);
     UI.renderRecent(files, openFromRecent, async id => {
       await Storage.deleteFile(id);
       await refreshRecentList();
-    });
+    }, () => UI.els.fileInput.click());
   }
 
   // ── Event wiring ─────────────────────────────────────

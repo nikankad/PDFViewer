@@ -217,25 +217,48 @@ const UI = (() => {
   }
 
   // Render recent files list. Calls onOpen(id) or onDelete(id).
-  function renderRecent(files, onOpen, onDelete) {
+  function renderRecent(files, onOpen, onDelete, onOpenPdf) {
     if (!els.recentList) return;
     if (!files.length) {
       els.recentList.classList.add('hidden');
       return;
     }
     els.recentList.classList.remove('hidden');
-    els.recentList.innerHTML = '<p class="recent-label">Recent</p>';
+    els.recentList.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'recent-header';
+    const title = document.createElement('div');
+    title.className = 'recent-title-wrap';
+    title.innerHTML = '<p class="recent-label">Recent Library</p>';
+    header.appendChild(title);
+    els.recentList.appendChild(header);
+
+    const shelf = document.createElement('div');
+    shelf.className = 'recent-shelf';
     files.forEach(f => {
       const card = document.createElement('div');
       card.className = 'recent-card';
 
-      const info = document.createElement('button');
-      info.className = 'recent-info';
-      info.title = f.name;
-      info.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      const cover = document.createElement('button');
+      cover.className = 'recent-cover';
+      cover.title = `Open ${f.name}`;
+      cover.addEventListener('click', () => onOpen(f.id));
+      if (f.cover) {
+        const img = document.createElement('img');
+        img.src = f.cover;
+        img.alt = '';
+        cover.appendChild(img);
+      } else {
+        cover.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
         </svg>`;
+      }
+
+      const info = document.createElement('button');
+      info.className = 'recent-info';
+      info.title = f.name;
       const nameSpan = document.createElement('span');
       nameSpan.className = 'recent-name';
       nameSpan.textContent = f.name;
@@ -254,10 +277,12 @@ const UI = (() => {
       </svg>`;
       del.addEventListener('click', e => { e.stopPropagation(); onDelete(f.id); });
 
+      card.appendChild(cover);
       card.appendChild(info);
       card.appendChild(del);
-      els.recentList.appendChild(card);
+      shelf.appendChild(card);
     });
+    els.recentList.appendChild(shelf);
   }
 
   function escapeHtml(s) {
