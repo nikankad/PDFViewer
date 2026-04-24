@@ -224,39 +224,55 @@ const UI = (() => {
       return;
     }
     els.recentList.classList.remove('hidden');
-    els.recentList.innerHTML = '<p class="recent-label">Recent</p>';
+    els.recentList.innerHTML = '';
+
+    const label = document.createElement('p');
+    label.className = 'recent-label';
+    label.textContent = 'Recent';
+    els.recentList.appendChild(label);
+
+    const shelf = document.createElement('div');
+    shelf.className = 'bookshelf-grid';
+    els.recentList.appendChild(shelf);
+
     files.forEach(f => {
-      const card = document.createElement('div');
-      card.className = 'recent-card';
+      const book = document.createElement('article');
+      book.className = 'bookshelf-book';
 
       const info = document.createElement('button');
-      info.className = 'recent-info';
+      info.className = 'book-open';
       info.title = f.name;
-      info.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-        </svg>`;
+      const cover = document.createElement('div');
+      cover.className = 'book-cover';
+      cover.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>`;
+
       const nameSpan = document.createElement('span');
-      nameSpan.className = 'recent-name';
+      nameSpan.className = 'book-title';
       nameSpan.textContent = f.name;
+
       const metaSpan = document.createElement('span');
-      metaSpan.className = 'recent-meta';
+      metaSpan.className = 'book-meta';
       metaSpan.textContent = `${formatDate(f.lastOpened)} \u00b7 ${formatSize(f.size)}`;
+
+      info.appendChild(cover);
       info.appendChild(nameSpan);
       info.appendChild(metaSpan);
       info.addEventListener('click', () => onOpen(f.id));
 
       const del = document.createElement('button');
-      del.className = 'recent-delete icon-btn';
+      del.className = 'book-remove icon-btn';
       del.title = 'Remove from recent';
       del.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>`;
       del.addEventListener('click', e => { e.stopPropagation(); onDelete(f.id); });
 
-      card.appendChild(info);
-      card.appendChild(del);
-      els.recentList.appendChild(card);
+      book.appendChild(info);
+      book.appendChild(del);
+      shelf.appendChild(book);
     });
   }
 
