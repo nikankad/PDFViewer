@@ -165,7 +165,140 @@
     });
   }
 
-  // Capture selected text rect on a page and add as highlight (only when highlight mode is active)
+  function getSelectionRectsByPage(range) {
+    return Array.from(document.querySelectorAll('.page-wrapper'))
+      .map(wrapper => {
+        const textLayer = wrapper.querySelector('.textLayer');
+        if (!textLayer) return null;
+        try {
+          if (!range.intersectsNode(textLayer)) return null;
+        } catch (_) {
+          return null;
+        }
+
+        const pageRect = wrapper.getBoundingClientRect();
+        const rects = getSelectedTextNodeRects(range, textLayer, pageRect);
+
+        if (!rects.length) return null;
+        return { wrapper, pageNum: parseInt(wrapper.dataset.page, 10), rects: mergeSelectionRects(rects) };
+      })
+      .filter(Boolean);
+  }
+
+  function getSelectedTextNodeRects(range, textLayer, pageRect) {
+    const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        try {
+          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        } catch (_) {
+          return NodeFilter.FILTER_REJECT;
+        }
+      },
+    });
+
+    const rects = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      const offsets = getSelectedTextOffsets(range, node);
+      if (!offsets) continue;
+
+      const nodeRange = document.createRange();
+      nodeRange.setStart(node, offsets.start);
+      nodeRange.setEnd(node, offsets.end);
+      const parentRect = node.parentElement?.getBoundingClientRect();
+      Array.from(nodeRange.getClientRects()).forEach(r => {
+        const clipped = clipSelectionRect(parentRect ? tightenRectToTextLine(r, parentRect) : r, pageRect);
+        if (clipped) rects.push(clipped);
+      });
+      nodeRange.detach();
+    }
+    return rects;
+  }
+
+  function getSelectedTextOffsets(range, node) {
+    const textLength = node.nodeValue.length;
+    const nodeRange = document.createRange();
+    nodeRange.selectNodeContents(node);
+
+    let start = 0;
+    let end = textLength;
+    if (range.compareBoundaryPoints(Range.START_TO_START, nodeRange) > 0) {
+      start = findTextOffset(node, range, true);
+    }
+    if (range.compareBoundaryPoints(Range.END_TO_END, nodeRange) < 0) {
+      end = findTextOffset(node, range, false);
+    }
+    nodeRange.detach();
+
+    return start < end ? { start, end } : null;
+  }
+
+  function findTextOffset(node, selectionRange, findStart) {
+    let low = 0;
+    let high = node.nodeValue.length;
+    const testRange = document.createRange();
+
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      testRange.setStart(node, mid);
+      testRange.setEnd(node, mid);
+      const cmp = findStart
+        ? selectionRange.compareBoundaryPoints(Range.START_TO_START, testRange)
+        : selectionRange.compareBoundaryPoints(Range.END_TO_START, testRange);
+
+      if (findStart ? cmp > 0 : cmp >= 0) low = mid + 1;
+      else high = mid;
+    }
+
+    testRange.detach();
+    return findStart ? low : Math.max(0, low - 1);
+  }
+
+  function tightenRectToTextLine(rect, textRect) {
+    const height = Math.min(rect.height, textRect.height);
+    const verticalInset = Math.max(0, (rect.height - height) / 2);
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top + verticalInset,
+      bottom: rect.bottom - verticalInset,
+    };
+  }
+
+  function clipSelectionRect(rect, pageRect) {
+    const left = Math.max(rect.left, pageRect.left);
+    const top = Math.max(rect.top, pageRect.top);
+    const right = Math.min(rect.right, pageRect.right);
+    const bottom = Math.min(rect.bottom, pageRect.bottom);
+    if (right - left <= 0.5 || bottom - top <= 0.5) return null;
+    return {
+      left: left - pageRect.left,
+      top: top - pageRect.top,
+      right: right - pageRect.left,
+      bottom: bottom - pageRect.top,
+    };
+  }
+
+  function mergeSelectionRects(rects) {
+    return rects
+      .sort((a, b) => a.top - b.top || a.left - b.left)
+      .reduce((merged, rect) => {
+        const last = merged[merged.length - 1];
+        const sameLine = last && Math.abs(last.top - rect.top) < 2 && Math.abs(last.bottom - rect.bottom) < 2;
+        const touches = last && rect.left - last.right < 4;
+        if (sameLine && touches) {
+          last.right = Math.max(last.right, rect.right);
+          last.top = Math.min(last.top, rect.top);
+          last.bottom = Math.max(last.bottom, rect.bottom);
+        } else {
+          merged.push({ ...rect });
+        }
+        return merged;
+      }, []);
+  }
+
+  // Capture the browser's visual selection rects per page and persist them as highlights.
   UI.els.pdfViewport.addEventListener('mouseup', () => {
     if (!highlightMode) return;
 
@@ -173,49 +306,18 @@
     if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 
     const range = sel.getRangeAt(0);
-    const rects = Array.from(range.getClientRects());
-    if (!rects.length) return;
+    const selections = getSelectionRectsByPage(range);
+    if (!selections.length) return;
 
-    // Find which page wrapper the selection is in
-    let node = range.commonAncestorContainer;
-    while (node && node !== document.body) {
-      if (node.classList && node.classList.contains('page-wrapper')) break;
-      node = node.parentNode;
-    }
-    if (!node || !node.dataset.page) return;
+    let added = false;
+    selections.forEach(({ wrapper, pageNum, rects }) => {
+      if (!PDFHandler.highlightFromSelection(pageNum, rects)) return;
+      const userHlCanvas = wrapper.querySelector('.user-hl-layer');
+      PDFHandler.drawUserHighlights(pageNum, userHlCanvas);
+      added = true;
+    });
 
-    const pageNum = parseInt(node.dataset.page, 10);
-    const textLayerDiv = node.querySelector('.textLayer');
-    const refRect = (textLayerDiv || node).getBoundingClientRect();
-
-    // Convert to page-relative CSS pixel coords at current scale (what highlightFromSelection expects)
-    const pageRects = rects
-      .filter(r => r.width > 0.5 && r.height > 0.5)
-      .map(r => ({
-        left:   r.left   - refRect.left,
-        top:    r.top    - refRect.top,
-        right:  r.right  - refRect.left,
-        bottom: r.bottom - refRect.top,
-      }));
-
-    // Use cache geometry for accurate positioning (handles equations, transformed text, etc.)
-    const added = PDFHandler.highlightFromSelection(pageNum, pageRects);
-
-    // Fallback to raw DOM rects if no cache items matched (e.g. image-based content)
-    if (!added) {
-      const scale = PDFHandler.getScale();
-      pageRects.forEach(r => {
-        PDFHandler.addHighlight(pageNum, {
-          x: r.left  / scale,
-          y: r.top   / scale,
-          w: (r.right  - r.left) / scale,
-          h: (r.bottom - r.top)  / scale,
-        });
-      });
-    }
-
-    const userHlCanvas = node.querySelector('.user-hl-layer');
-    PDFHandler.drawUserHighlights(pageNum, userHlCanvas);
+    if (!added) return;
     setSaveBtnState(false); // unsaved changes
     sel.removeAllRanges();
   });
