@@ -87,6 +87,42 @@
     }
   }
 
+  function getPdfNameFromUrl(url) {
+    try {
+      const parsed = new URL(url);
+      const name = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() || 'remote.pdf');
+      return name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`;
+    } catch (_) {
+      return 'remote.pdf';
+    }
+  }
+
+  async function openFromUrl(value) {
+    const url = value.trim();
+    if (!url) return;
+
+    UI.setLoading(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const type = res.headers.get('content-type') || '';
+      if (type && !type.toLowerCase().includes('pdf') && !url.toLowerCase().includes('.pdf')) {
+        throw new Error('URL did not return a PDF');
+      }
+      const buf = await res.arrayBuffer();
+      const name = getPdfNameFromUrl(url);
+      currentFileId = await Storage.saveFile(name, buf);
+      await openFromBuffer(buf, name);
+      await refreshRecentList();
+      UI.els.urlInput.value = '';
+    } catch (err) {
+      console.error(err);
+      alert('Failed to open PDF URL: ' + (err.message || err));
+    } finally {
+      UI.setLoading(false);
+    }
+  }
+
   async function openFromRecent(id) {
     UI.setLoading(true);
     try {
@@ -519,7 +555,12 @@
   UI.els.browseBtn.addEventListener('click', () => UI.els.fileInput.click());
   UI.els.fileInput.addEventListener('change', e => openFile(e.target.files[0]));
   UI.els.dropZone.addEventListener('click', e => {
+    if (e.target.closest('.url-form')) return;
     if (e.target !== UI.els.browseBtn) UI.els.fileInput.click();
+  });
+  UI.els.urlForm.addEventListener('submit', e => {
+    e.preventDefault();
+    openFromUrl(UI.els.urlInput.value);
   });
 
   UI.els.dropZone.addEventListener('dragover', e => { e.preventDefault(); UI.els.dropZone.classList.add('dragover'); });

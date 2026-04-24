@@ -11,6 +11,9 @@ const UI = (() => {
     fileInput:       $('file-input'),
     fileInputViewer: $('file-input-viewer'),
     browseBtn:       $('browse-btn'),
+    urlForm:         $('url-form'),
+    urlInput:        $('url-input'),
+    urlOpenBtn:      $('url-open-btn'),
     openBtn:         $('open-btn'),
     loading:         $('loading'),
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; worker-src blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src 'self' https:; worker-src blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none';">
   <title>PDFViewer</title>
   <link rel="icon" type="image/png" href="images/pngtree-pdf-file-icon-png-png-image_4899509.jpg" />
   <link rel="stylesheet" href="styles.css" />
@@ -38,6 +38,14 @@
       </svg>
       <p class="drop-title">Drop a PDF here</p>
       <p class="drop-sub">or <button id="browse-btn" class="link-btn">browse files</button></p>
+      <form id="url-form" class="url-form">
+        <label class="url-label" for="url-input">Open PDF from URL</label>
+        <div class="url-row">
+          <input id="url-input" class="url-input" type="url" placeholder="https://example.com/file.pdf" autocomplete="off" />
+          <button id="url-open-btn" class="url-open-btn" type="submit">Open</button>
+        </div>
+        <p class="url-hint">The server must allow browser access to the PDF.</p>
+      </form>
     </div>
     <div id="recent-list" class="recent-list hidden"></div>
     <p class="upload-disclaimer">Your PDFs stay on your device &mdash; files and highlights are stored locally in your browser and are never uploaded to any server.</p>
