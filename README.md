@@ -71,5 +71,7 @@ Then open `http://localhost:8000`. Any static file server works.
 ## Stack
 
 - Vanilla HTML, CSS, and JavaScript (no framework, no build step)
-- [pdf.js](https://mozilla.github.io/pdf.js/) for PDF rendering
+- [pdf.js](https://mozilla.github.io/pdf.js/) for PDF rendering, loaded via CDN with subresource integrity (SRI) verification
 - IndexedDB for file and highlight storage
+- Content Security Policy (CSP) to restrict resource origins and prevent XSS
+- Lazy page rendering so large PDFs load without crashing the browser
