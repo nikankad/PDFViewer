@@ -55,6 +55,7 @@ const Storage = (() => {
           bytes: arrayBuffer,
           cover: existing.cover,
           tags: existing.tags || [],
+          lastPage: existing.lastPage || 1,
         });
         putReq.onsuccess = () => resolve();
         putReq.onerror = err => reject(err.target.error);
@@ -113,6 +114,29 @@ const Storage = (() => {
       };
       getReq.onerror = e => reject(e.target.error);
     });
+  }
+
+  async function saveReadingProgress(id, page) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction('files', 'readwrite');
+      const store = t.objectStore('files');
+      const getReq = store.get(id);
+      getReq.onsuccess = e => {
+        const rec = e.target.result;
+        if (!rec) { resolve(); return; }
+        rec.lastPage = Math.max(1, parseInt(page, 10) || 1);
+        const putReq = store.put(rec);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = err => reject(err.target.error);
+      };
+      getReq.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function getReadingProgress(id) {
+    const rec = await tx('files', 'readonly', store => store.get(id));
+    return rec?.lastPage || 1;
   }
 
   async function getFile(id) {
@@ -175,5 +199,21 @@ const Storage = (() => {
     localStorage.setItem('pdfviewer.' + key, JSON.stringify(val));
   }
 
-  return { saveFile, touchFile, saveCover, saveTags, getFile, listRecent, deleteFile, saveHighlights, getHighlights, sha256, clearAllHighlights, getSetting, setSetting };
+  return {
+    saveFile,
+    touchFile,
+    saveCover,
+    saveTags,
+    saveReadingProgress,
+    getReadingProgress,
+    getFile,
+    listRecent,
+    deleteFile,
+    saveHighlights,
+    getHighlights,
+    sha256,
+    clearAllHighlights,
+    getSetting,
+    setSetting,
+  };
 })();

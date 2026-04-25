@@ -4,6 +4,8 @@
   const ZOOM_STEP = 0.25;
   const ZOOM_MIN  = 0.25;
   const ZOOM_MAX  = 4.0;
+  const REMOTE_PDF_MAX_BYTES = 40 * 1024 * 1024;
+  const REMOTE_PDF_TIMEOUT_MS = 15000;
 
   let currentPage      = 1;
   let currentFileId    = null;
@@ -13,6 +15,8 @@
   let searchIndex      = 0;
   let highlightMode    = false;
   let recentSearchQuery = '';
+  let recentSelectedTags = [];
+  let progressSaveTimer = null;
 
   // ── Settings init ────────────────────────────────────
 
@@ -41,7 +45,24 @@
 
   // ── File loading ─────────────────────────────────────
 
-  async function openFromBuffer(buf, name) {
+  function scheduleProgressSave() {
+    if (!currentFileId) return;
+    if (progressSaveTimer) clearTimeout(progressSaveTimer);
+    const fileId = currentFileId;
+    const pageToSave = currentPage;
+    progressSaveTimer = setTimeout(() => {
+      Storage.saveReadingProgress(fileId, pageToSave).catch(err => {
+        console.warn('Failed to save reading progress', err);
+      });
+      progressSaveTimer = null;
+    }, 220);
+  }
+
+  async function openFromBuffer(buf, name, initialPage = 1) {
+    if (progressSaveTimer) {
+      clearTimeout(progressSaveTimer);
+      progressSaveTimer = null;
+    }
     await PDFHandler.load(buf);
     if (currentFileId) {
       const cover = await PDFHandler.renderCover(96);
@@ -61,10 +82,14 @@
 
     const outline = await PDFHandler.getOutline();
     await UI.buildTOC(outline, onTOCClick);
-    UI.setPageInfo(1, PDFHandler.getPageCount());
+    const totalPages = PDFHandler.getPageCount();
+    const targetPage = Math.min(Math.max(1, parseInt(initialPage, 10) || 1), totalPages);
+    currentPage = targetPage;
+    UI.setPageInfo(targetPage, totalPages);
     UI.setZoom(PDFHandler.getScale());
-    UI.scrollToPage(1);
+    UI.scrollToPage(targetPage);
     startObserver();
+    scheduleProgressSave();
     setSaveBtnState(false);
     if (window._updateToolbarVisibility) window._updateToolbarVisibility();
   }
@@ -77,7 +102,8 @@
     try {
       const buf = await file.arrayBuffer();
       currentFileId = await Storage.saveFile(file.name, buf);
-      await openFromBuffer(buf, file.name);
+      const savedPage = await Storage.getReadingProgress(currentFileId);
+      await openFromBuffer(buf, file.name, savedPage);
       await refreshRecentList();
     } catch (err) {
       console.error(err);
@@ -101,18 +127,45 @@
     const url = value.trim();
     if (!url) return;
 
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (_) {
+      alert('Please enter a valid URL.');
+      return;
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      alert('Only http(s) PDF URLs are supported.');
+      return;
+    }
+
     UI.setLoading(true);
     try {
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REMOTE_PDF_TIMEOUT_MS);
+      let res;
+      try {
+        res = await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const contentLength = parseInt(res.headers.get('content-length') || '0', 10);
+      if (contentLength > REMOTE_PDF_MAX_BYTES) {
+        throw new Error('PDF is too large (max 40 MB)');
+      }
       const type = res.headers.get('content-type') || '';
       if (type && !type.toLowerCase().includes('pdf') && !url.toLowerCase().includes('.pdf')) {
         throw new Error('URL did not return a PDF');
       }
       const buf = await res.arrayBuffer();
+      if (buf.byteLength > REMOTE_PDF_MAX_BYTES) {
+        throw new Error('PDF is too large (max 40 MB)');
+      }
       const name = getPdfNameFromUrl(url);
       currentFileId = await Storage.saveFile(name, buf);
-      await openFromBuffer(buf, name);
+      const savedPage = await Storage.getReadingProgress(currentFileId);
+      await openFromBuffer(buf, name, savedPage);
       await refreshRecentList();
       UI.els.urlInput.value = '';
     } catch (err) {
@@ -129,8 +182,9 @@
       const buf = await Storage.getFile(id);
       if (!buf) { alert('File not found in storage.'); return; }
       currentFileId = id;
+      const savedPage = await Storage.getReadingProgress(id);
       await Storage.touchFile(id);
-      await openFromBuffer(buf, '');
+      await openFromBuffer(buf, '', savedPage);
       await refreshRecentList();
     } catch (err) {
       console.error(err);
@@ -201,140 +255,7 @@
     });
   }
 
-  function getSelectionRectsByPage(range) {
-    return Array.from(document.querySelectorAll('.page-wrapper'))
-      .map(wrapper => {
-        const textLayer = wrapper.querySelector('.textLayer');
-        if (!textLayer) return null;
-        try {
-          if (!range.intersectsNode(textLayer)) return null;
-        } catch (_) {
-          return null;
-        }
-
-        const pageRect = wrapper.getBoundingClientRect();
-        const rects = getSelectedTextNodeRects(range, textLayer, pageRect);
-
-        if (!rects.length) return null;
-        return { wrapper, pageNum: parseInt(wrapper.dataset.page, 10), rects: mergeSelectionRects(rects) };
-      })
-      .filter(Boolean);
-  }
-
-  function getSelectedTextNodeRects(range, textLayer, pageRect) {
-    const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-        try {
-          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-        } catch (_) {
-          return NodeFilter.FILTER_REJECT;
-        }
-      },
-    });
-
-    const rects = [];
-    let node;
-    while ((node = walker.nextNode())) {
-      const offsets = getSelectedTextOffsets(range, node);
-      if (!offsets) continue;
-
-      const nodeRange = document.createRange();
-      nodeRange.setStart(node, offsets.start);
-      nodeRange.setEnd(node, offsets.end);
-      const parentRect = node.parentElement?.getBoundingClientRect();
-      Array.from(nodeRange.getClientRects()).forEach(r => {
-        const clipped = clipSelectionRect(parentRect ? tightenRectToTextLine(r, parentRect) : r, pageRect);
-        if (clipped) rects.push(clipped);
-      });
-      nodeRange.detach();
-    }
-    return rects;
-  }
-
-  function getSelectedTextOffsets(range, node) {
-    const textLength = node.nodeValue.length;
-    const nodeRange = document.createRange();
-    nodeRange.selectNodeContents(node);
-
-    let start = 0;
-    let end = textLength;
-    if (range.compareBoundaryPoints(Range.START_TO_START, nodeRange) > 0) {
-      start = findTextOffset(node, range, true);
-    }
-    if (range.compareBoundaryPoints(Range.END_TO_END, nodeRange) < 0) {
-      end = findTextOffset(node, range, false);
-    }
-    nodeRange.detach();
-
-    return start < end ? { start, end } : null;
-  }
-
-  function findTextOffset(node, selectionRange, findStart) {
-    let low = 0;
-    let high = node.nodeValue.length;
-    const testRange = document.createRange();
-
-    while (low < high) {
-      const mid = Math.floor((low + high) / 2);
-      testRange.setStart(node, mid);
-      testRange.setEnd(node, mid);
-      const cmp = findStart
-        ? selectionRange.compareBoundaryPoints(Range.START_TO_START, testRange)
-        : selectionRange.compareBoundaryPoints(Range.END_TO_START, testRange);
-
-      if (findStart ? cmp > 0 : cmp >= 0) low = mid + 1;
-      else high = mid;
-    }
-
-    testRange.detach();
-    return findStart ? low : Math.max(0, low - 1);
-  }
-
-  function tightenRectToTextLine(rect, textRect) {
-    const height = Math.min(rect.height, textRect.height);
-    const verticalInset = Math.max(0, (rect.height - height) / 2);
-    return {
-      left: rect.left,
-      right: rect.right,
-      top: rect.top + verticalInset,
-      bottom: rect.bottom - verticalInset,
-    };
-  }
-
-  function clipSelectionRect(rect, pageRect) {
-    const left = Math.max(rect.left, pageRect.left);
-    const top = Math.max(rect.top, pageRect.top);
-    const right = Math.min(rect.right, pageRect.right);
-    const bottom = Math.min(rect.bottom, pageRect.bottom);
-    if (right - left <= 0.5 || bottom - top <= 0.5) return null;
-    return {
-      left: left - pageRect.left,
-      top: top - pageRect.top,
-      right: right - pageRect.left,
-      bottom: bottom - pageRect.top,
-    };
-  }
-
-  function mergeSelectionRects(rects) {
-    return rects
-      .sort((a, b) => a.top - b.top || a.left - b.left)
-      .reduce((merged, rect) => {
-        const last = merged[merged.length - 1];
-        const sameLine = last && Math.abs(last.top - rect.top) < 2 && Math.abs(last.bottom - rect.bottom) < 2;
-        const touches = last && rect.left - last.right < 4;
-        if (sameLine && touches) {
-          last.right = Math.max(last.right, rect.right);
-          last.top = Math.min(last.top, rect.top);
-          last.bottom = Math.max(last.bottom, rect.bottom);
-        } else {
-          merged.push({ ...rect });
-        }
-        return merged;
-      }, []);
-  }
-
-  // Capture the browser's visual selection rects per page and persist them as highlights.
+  // Use pdf.js/browser text selection rects directly for highlights.
   UI.els.pdfViewport.addEventListener('mouseup', () => {
     if (!highlightMode) return;
 
@@ -342,11 +263,38 @@
     if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 
     const range = sel.getRangeAt(0);
-    const selections = getSelectionRectsByPage(range);
-    if (!selections.length) return;
+    const rangeRects = Array.from(range.getClientRects()).filter(r => r.width > 0.5 && r.height > 0.5);
+    if (!rangeRects.length) return;
 
     let added = false;
-    selections.forEach(({ wrapper, pageNum, rects }) => {
+    document.querySelectorAll('.page-wrapper').forEach(wrapper => {
+      const textLayer = wrapper.querySelector('.textLayer');
+      if (!textLayer) return;
+      try {
+        if (!range.intersectsNode(textLayer)) return;
+      } catch (_) {
+        return;
+      }
+
+      const pageRect = wrapper.getBoundingClientRect();
+      const rects = rangeRects
+        .map(r => {
+          const left = Math.max(r.left, pageRect.left);
+          const top = Math.max(r.top, pageRect.top);
+          const right = Math.min(r.right, pageRect.right);
+          const bottom = Math.min(r.bottom, pageRect.bottom);
+          return { left, top, right, bottom };
+        })
+        .filter(r => r.right - r.left > 0.5 && r.bottom - r.top > 0.5)
+        .map(r => ({
+          left: r.left - pageRect.left,
+          top: r.top - pageRect.top,
+          right: r.right - pageRect.left,
+          bottom: r.bottom - pageRect.top,
+        }));
+
+      if (!rects.length) return;
+      const pageNum = parseInt(wrapper.dataset.page, 10);
       if (!PDFHandler.highlightFromSelection(pageNum, rects)) return;
       const userHlCanvas = wrapper.querySelector('.user-hl-layer');
       PDFHandler.drawUserHighlights(pageNum, userHlCanvas);
@@ -379,6 +327,7 @@
       if (page !== currentPage) {
         currentPage = page;
         UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+        scheduleProgressSave();
         if (window._updateToolbarVisibility) window._updateToolbarVisibility();
       }
     });
@@ -395,6 +344,7 @@
       currentPage = pageNum;
       UI.scrollToPage(pageNum);
       UI.setPageInfo(pageNum, PDFHandler.getPageCount());
+      scheduleProgressSave();
     }
     if (window.innerWidth < 600) UI.toggleSidebar(false);
   }
@@ -437,6 +387,7 @@
     currentPage = page;
     UI.scrollToPage(page);
     UI.setPageInfo(page, PDFHandler.getPageCount());
+    scheduleProgressSave();
     const matchStr = searchResults.length > 1
       ? `${searchIndex + 1}/${searchResults.length} pages`
       : '1 page';
@@ -500,13 +451,41 @@
       });
   }
 
+  function normalizeSearchText(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+
+  function fuzzyContains(text, query) {
+    const rawText = String(text || '').toLowerCase();
+    const rawQuery = String(query || '').toLowerCase();
+    if (!rawQuery.trim()) return true;
+    if (rawText.includes(rawQuery)) return true;
+
+    const compactText = normalizeSearchText(rawText);
+    const compactQuery = normalizeSearchText(rawQuery);
+    if (!compactQuery) return true;
+    if (compactText.includes(compactQuery)) return true;
+
+    let i = 0;
+    for (let j = 0; j < compactText.length && i < compactQuery.length; j++) {
+      if (compactText[j] === compactQuery[i]) i++;
+    }
+    return i === compactQuery.length;
+  }
+
   function filterRecentFiles(files) {
     const q = recentSearchQuery.trim().toLowerCase();
-    if (!q) return files;
+    const queryTokens = q.split(/\s+/).filter(Boolean);
+    const selected = recentSelectedTags.map(t => t.toLowerCase());
+
     return files.filter(f => {
-      const nameMatches = f.name.toLowerCase().includes(q);
-      const tagMatches = (f.tags || []).some(tag => tag.toLowerCase().includes(q));
-      return nameMatches || tagMatches;
+      const tags = (f.tags || []).map(tag => tag.toLowerCase());
+      const hasSelectedTags = selected.every(tag => tags.includes(tag));
+      if (!hasSelectedTags) return false;
+      if (!queryTokens.length) return true;
+
+      const haystack = `${f.name} ${(f.tags || []).join(' ')}`;
+      return queryTokens.every(token => fuzzyContains(haystack, token));
     });
   }
 
@@ -529,6 +508,10 @@
   }
 
   function renderRecentFiles(files) {
+    const availableTags = getRecentTags(files);
+    const availableKeys = new Set(availableTags.map(tag => tag.toLowerCase()));
+    recentSelectedTags = recentSelectedTags.filter(tag => availableKeys.has(tag.toLowerCase()));
+
     UI.renderRecent(filterRecentFiles(files), openFromRecent, async id => {
       await Storage.deleteFile(id);
       await refreshRecentList();
@@ -541,7 +524,16 @@
         search.focus();
         search.setSelectionRange(search.value.length, search.value.length);
       });
-    }, getRecentTags(files));
+    }, availableTags, recentSelectedTags, tag => {
+      const key = tag.toLowerCase();
+      const selected = new Set(recentSelectedTags.map(t => t.toLowerCase()));
+      if (selected.has(key)) {
+        recentSelectedTags = recentSelectedTags.filter(t => t.toLowerCase() !== key);
+      } else {
+        recentSelectedTags = [...recentSelectedTags, tag];
+      }
+      renderRecentFiles(files);
+    });
   }
 
   async function refreshRecentList() {
@@ -582,14 +574,28 @@
   UI.els.homeBtn.addEventListener('click', () => UI.showUpload());
 
   UI.els.prevBtn.addEventListener('click', () => {
-    if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); }
+    if (currentPage > 1) {
+      currentPage--;
+      UI.scrollToPage(currentPage);
+      UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+      scheduleProgressSave();
+    }
   });
   UI.els.nextBtn.addEventListener('click', () => {
-    if (currentPage < PDFHandler.getPageCount()) { currentPage++; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); }
+    if (currentPage < PDFHandler.getPageCount()) {
+      currentPage++;
+      UI.scrollToPage(currentPage);
+      UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+      scheduleProgressSave();
+    }
   });
   UI.els.pageInput.addEventListener('change', () => {
     const n = parseInt(UI.els.pageInput.value, 10);
-    if (n >= 1 && n <= PDFHandler.getPageCount()) { currentPage = n; UI.scrollToPage(n); }
+    if (n >= 1 && n <= PDFHandler.getPageCount()) {
+      currentPage = n;
+      UI.scrollToPage(n);
+      scheduleProgressSave();
+    }
     else UI.els.pageInput.value = currentPage;
   });
 
@@ -627,15 +633,51 @@
       case '+': case '=': e.preventDefault(); PDFHandler.setScale(Math.min(ZOOM_MAX, PDFHandler.getScale() + ZOOM_STEP)); rerenderAll(); break;
       case '-':           e.preventDefault(); PDFHandler.setScale(Math.max(ZOOM_MIN, PDFHandler.getScale() - ZOOM_STEP)); rerenderAll(); break;
       case 'ArrowLeft': case 'ArrowUp':
-        if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
+        if (currentPage > 1) {
+          currentPage--;
+          UI.scrollToPage(currentPage);
+          UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+          scheduleProgressSave();
+        }
+        break;
       case 'ArrowRight': case 'ArrowDown':
-        if (currentPage < PDFHandler.getPageCount()) { currentPage++; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
+        if (currentPage < PDFHandler.getPageCount()) {
+          currentPage++;
+          UI.scrollToPage(currentPage);
+          UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+          scheduleProgressSave();
+        }
+        break;
       case '[':
-        if (currentPage > 1) { currentPage--; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
+        if (currentPage > 1) {
+          currentPage--;
+          UI.scrollToPage(currentPage);
+          UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+          scheduleProgressSave();
+        }
+        break;
       case ']':
-        if (currentPage < PDFHandler.getPageCount()) { currentPage++; UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); } break;
-      case 'Home': e.preventDefault(); currentPage = 1; UI.scrollToPage(1); UI.setPageInfo(1, PDFHandler.getPageCount()); break;
-      case 'End':  e.preventDefault(); currentPage = PDFHandler.getPageCount(); UI.scrollToPage(currentPage); UI.setPageInfo(currentPage, PDFHandler.getPageCount()); break;
+        if (currentPage < PDFHandler.getPageCount()) {
+          currentPage++;
+          UI.scrollToPage(currentPage);
+          UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+          scheduleProgressSave();
+        }
+        break;
+      case 'Home':
+        e.preventDefault();
+        currentPage = 1;
+        UI.scrollToPage(1);
+        UI.setPageInfo(1, PDFHandler.getPageCount());
+        scheduleProgressSave();
+        break;
+      case 'End':
+        e.preventDefault();
+        currentPage = PDFHandler.getPageCount();
+        UI.scrollToPage(currentPage);
+        UI.setPageInfo(currentPage, PDFHandler.getPageCount());
+        scheduleProgressSave();
+        break;
       case '0': if (mod) { PDFHandler.setScale(Storage.getSetting('defaultZoom', 150) / 100); rerenderAll(); } break;
       case 'f': e.preventDefault(); if (mod) { UI.toggleSearch(true); } else if (!e.ctrlKey && !e.metaKey) { PDFHandler.fitToWidth(UI.els.pdfViewport.clientWidth); rerenderAll(); } break;
       case 't': if (mod) UI.toggleSidebar(); break;

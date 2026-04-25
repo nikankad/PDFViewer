@@ -220,7 +220,17 @@ const UI = (() => {
   }
 
   // Render recent files list. Calls onOpen(id) or onDelete(id).
-  function renderRecent(files, onOpen, onDelete, onEditTags, searchQuery = '', onSearch = () => {}, legendTags = []) {
+  function renderRecent(
+    files,
+    onOpen,
+    onDelete,
+    onEditTags,
+    searchQuery = '',
+    onSearch = () => {},
+    legendTags = [],
+    selectedTags = [],
+    onToggleTag = () => {}
+  ) {
     if (!els.recentList) return;
     els.recentList.classList.remove('hidden');
     els.recentList.innerHTML = '';
@@ -253,9 +263,9 @@ const UI = (() => {
         btn.type = 'button';
         btn.textContent = tag;
         applyTagColor(btn, tag);
-        const active = searchQuery.trim().toLowerCase() === tag.toLowerCase();
+        const active = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
         btn.classList.toggle('active', active);
-        btn.addEventListener('click', () => onSearch(active ? '' : tag));
+        btn.addEventListener('click', () => onToggleTag(tag));
         legend.appendChild(btn);
       });
       els.recentList.appendChild(legend);
@@ -266,7 +276,9 @@ const UI = (() => {
     if (!files.length) {
       const empty = document.createElement('p');
       empty.className = 'recent-empty';
-      empty.textContent = searchQuery ? 'No PDFs match that search.' : 'No recent PDFs yet.';
+      empty.textContent = (searchQuery.trim() || selectedTags.length)
+        ? 'No PDFs match the current filters.'
+        : 'No recent PDFs yet.';
       shelf.appendChild(empty);
       els.recentList.appendChild(shelf);
       return;

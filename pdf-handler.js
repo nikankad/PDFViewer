@@ -1,6 +1,6 @@
 // Manages pdf.js document loading and per-page rendering
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
 
 const PDFHandler = (() => {
   let _pdfDoc = null;
@@ -65,23 +65,22 @@ const PDFHandler = (() => {
       return;
     }
 
-    // Text layer
-    const textContent = await page.getTextContent();
-    _textCache[pageNum] = { items: textContent.items, viewport };
+    // Text layer (native PDF.js TextLayer API)
+    _textCache[pageNum] = { items: [], viewport };
 
     if (textLayerDiv) {
       textLayerDiv.innerHTML = '';
       textLayerDiv.style.width = Math.floor(viewport.width) + 'px';
       textLayerDiv.style.height = Math.floor(viewport.height) + 'px';
-      const renderResult = pdfjsLib.renderTextLayer({
-        textContent,
+      const textLayer = new pdfjsLib.TextLayer({
+        textContentSource: page.streamTextContent({
+          includeMarkedContent: true,
+          disableNormalization: true,
+        }),
         container: textLayerDiv,
         viewport,
-        textDivs: [],
       });
-      if (renderResult && renderResult.promise) {
-        await renderResult.promise;
-      }
+      await textLayer.render();
     }
   }
 

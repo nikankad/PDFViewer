@@ -848,12 +848,16 @@ kbd {
   font: inherit;
   font-size: 11px;
   padding: 4px 9px;
+  transition: box-shadow 0.16s, border-color 0.16s, background 0.16s, color 0.16s;
 }
 .recent-tag-legend-pill:hover,
 .recent-tag-legend-pill.active {
   border-color: var(--accent);
   color: #d8ecff;
   background: rgba(77, 166, 255, 0.16);
+}
+.recent-tag-legend-pill.active {
+  box-shadow: 0 0 0 1px rgba(77, 166, 255, 0.42), 0 0 14px rgba(77, 166, 255, 0.45);
 }
 .recent-label {
   font-size: 10px;
