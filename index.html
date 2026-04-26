@@ -58,7 +58,10 @@
     <!-- TOC Sidebar -->
     <aside id="sidebar" class="sidebar hidden">
       <div class="sidebar-header">
-        <span>Contents</span>
+        <div class="sidebar-title-row">
+          <span>Contents</span>
+          <button id="toc-collapse-all-btn" class="toc-collapse-all-btn" type="button" title="Collapse all sections">Collapse all</button>
+        </div>
         <button id="sidebar-close" class="icon-btn" title="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -75,92 +78,109 @@
 
     <!-- Toolbar -->
     <header class="toolbar">
-      <div class="toolbar-group">
-        <button id="home-btn" class="icon-btn" title="Back to home">
+      <div class="toolbar-side toolbar-left">
+        <div class="toolbar-pill">
+          <button id="toc-btn" class="icon-btn" title="Table of contents">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="toolbar-pill">
+          <button id="prev-btn" class="icon-btn" title="Previous page">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <button id="next-btn" class="icon-btn" title="Next page">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+        <button id="home-btn" class="icon-btn toolbar-standalone-btn" title="Back to home">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 10.5 12 3l9 7.5"/>
             <path d="M5 9.5V21h14V9.5"/>
           </svg>
         </button>
-        <button id="toc-btn" class="icon-btn" title="Table of contents">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
-        <button id="settings-btn" class="icon-btn" title="Settings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
-        <div id="highlight-container" class="highlight-container">
-          <button id="highlight-btn" class="icon-btn highlight-btn" title="Enable highlighting">
+        <div class="toolbar-doc">
+          <p id="doc-title" class="toolbar-doc-title">No document open</p>
+          <p id="doc-subtitle" class="toolbar-doc-subtitle">Page &mdash;</p>
+        </div>
+      </div>
+
+      <div class="toolbar-side toolbar-center">
+        <div class="toolbar-pill">
+          <button id="zoom-out-btn" class="icon-btn" title="Zoom out (-)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17.75 7L6.25 18.5 3 21.75a.75.75 0 000 1.06l1.69 1.69a.75.75 0 001.06 0l3.25-3.25L21.75 12.5"/>
-              <path d="M3 21.75l18.5-18.5"/>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
             </svg>
-            <span id="highlight-color-bar" class="highlight-color-bar"></span>
           </button>
-          <div id="highlight-picker" class="highlight-picker hidden">
-            <input type="color" id="highlight-color-picker" value="#ffdd00" class="color-input" />
+          <button id="zoom-reset-btn" class="zoom-label zoom-reset-btn" title="Reset to 100%">100%</button>
+          <button id="zoom-in-btn" class="icon-btn" title="Zoom in (+)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+        </div>
+        <div class="toolbar-pill page-pill">
+          <div class="page-nav">
+            <input id="page-input" class="page-input" type="number" min="1" value="1" />
+            <span class="page-sep">/</span>
+            <span id="page-total">—</span>
+          </div>
+        </div>
+        <div class="toolbar-pill">
+          <div id="highlight-container" class="highlight-container">
+            <button id="highlight-btn" class="icon-btn highlight-btn" title="Enable highlighting">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.75 7L6.25 18.5 3 21.75a.75.75 0 000 1.06l1.69 1.69a.75.75 0 001.06 0l3.25-3.25L21.75 12.5"/>
+                <path d="M3 21.75l18.5-18.5"/>
+              </svg>
+              <span id="highlight-color-bar" class="highlight-color-bar"></span>
+            </button>
+            <div id="highlight-picker" class="highlight-picker hidden">
+              <input type="color" id="highlight-color-picker" value="#ffdd00" class="color-input" />
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="toolbar-group toolbar-center">
-        <button id="prev-btn" class="icon-btn" title="Previous page">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <div class="page-nav">
-          <input id="page-input" class="page-input" type="number" min="1" value="1" />
-          <span class="page-sep">/</span>
-          <span id="page-total">—</span>
+      <div class="toolbar-side toolbar-right">
+        <div class="toolbar-pill">
+          <button id="dark-mode-btn" class="icon-btn" title="Toggle dark mode (Ctrl+Alt+D)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+          <button id="settings-btn" class="icon-btn" title="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+          <button id="save-btn" class="icon-btn save-btn" title="Save highlights">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+          </button>
+          <button id="open-btn" class="icon-btn" title="Open new PDF">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
         </div>
-        <button id="next-btn" class="icon-btn" title="Next page">
+        <button id="search-btn" class="icon-btn toolbar-search-btn" title="Search (Ctrl+F)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"/>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-        </button>
-      </div>
-
-      <div class="toolbar-group">
-        <button id="open-btn" class="icon-btn" title="Open new PDF">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+          <span>Search</span>
         </button>
         <input type="file" id="file-input-viewer" accept=".pdf" hidden />
-        <button id="zoom-out-btn" class="icon-btn" title="Zoom out (-)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
-          </svg>
-        </button>
-        <button id="zoom-reset-btn" class="zoom-label zoom-reset-btn" title="Reset to 100%">100%</button>
-        <button id="zoom-in-btn" class="icon-btn" title="Zoom in (+)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-          </svg>
-        </button>
-        <button id="search-btn" class="icon-btn" title="Search (Ctrl+F)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </button>
-        <button id="save-btn" class="icon-btn save-btn" title="Save highlights">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-        </button>
-        <button id="dark-mode-btn" class="icon-btn" title="Toggle dark mode (Ctrl+Alt+D)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
       </div>
     </header>
 

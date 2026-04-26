@@ -83,6 +83,7 @@
     const outline = await PDFHandler.getOutline();
     await UI.buildTOC(outline, onTOCClick);
     const totalPages = PDFHandler.getPageCount();
+    UI.setDocumentName(name || 'Untitled.pdf');
     const targetPage = Math.min(Math.max(1, parseInt(initialPage, 10) || 1), totalPages);
     currentPage = targetPage;
     UI.setPageInfo(targetPage, totalPages);
@@ -183,8 +184,10 @@
       if (!buf) { alert('File not found in storage.'); return; }
       currentFileId = id;
       const savedPage = await Storage.getReadingProgress(id);
+      const recentFiles = await Storage.listRecent();
+      const recent = recentFiles.find(file => file.id === id);
       await Storage.touchFile(id);
-      await openFromBuffer(buf, '', savedPage);
+      await openFromBuffer(buf, recent?.name || 'Untitled.pdf', savedPage);
       await refreshRecentList();
     } catch (err) {
       console.error(err);

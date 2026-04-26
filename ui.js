@@ -24,6 +24,8 @@ const UI = (() => {
     nextBtn:         $('next-btn'),
     pageInput:       $('page-input'),
     pageTotal:       $('page-total'),
+    docTitle:        $('doc-title'),
+    docSubtitle:     $('doc-subtitle'),
     zoomInBtn:       $('zoom-in-btn'),
     zoomOutBtn:      $('zoom-out-btn'),
     searchBtn:       $('search-btn'),
@@ -39,6 +41,7 @@ const UI = (() => {
     // Sidebar
     sidebar:         $('sidebar'),
     sidebarClose:    $('sidebar-close'),
+    tocCollapseAllBtn:$('toc-collapse-all-btn'),
     tocSearchInput:  $('toc-search-input'),
     tocList:         $('toc-list'),
 
@@ -88,6 +91,16 @@ const UI = (() => {
     els.pageInput.value = current;
     els.pageInput.max = total;
     els.pageTotal.textContent = total;
+    if (els.docSubtitle) {
+      els.docSubtitle.textContent = total ? `Page ${current} of ${total}` : 'Page —';
+    }
+  }
+
+  function setDocumentName(name) {
+    const safeName = String(name || '').trim();
+    if (els.docTitle) {
+      els.docTitle.textContent = safeName || 'Untitled.pdf';
+    }
   }
 
   function setZoom(scale) {
@@ -122,6 +135,24 @@ const UI = (() => {
 
   let tocOutline = [];
   let tocClickHandler = null;
+  let tocCollapsed = new Set();
+
+  function collectCollapsibleKeys(items, prefix = '') {
+    const keys = [];
+    items.forEach((item, i) => {
+      const key = prefix ? `${prefix}.${i}` : String(i);
+      if (item.items && item.items.length) {
+        keys.push(key);
+        keys.push(...collectCollapsibleKeys(item.items, key));
+      }
+    });
+    return keys;
+  }
+
+  function collapseAllTOC() {
+    tocCollapsed = new Set(collectCollapsibleKeys(tocOutline));
+    renderTOC(els.tocSearchInput ? els.tocSearchInput.value : '');
+  }
 
   function renderTOC(query = '') {
     els.tocList.innerHTML = '';
@@ -132,31 +163,78 @@ const UI = (() => {
     }
 
     const normalizedQuery = query.trim().toLowerCase();
-    let matches = 0;
+    let visibleCount = 0;
+    const forceExpand = Boolean(normalizedQuery);
 
-    function renderItems(items, level) {
-      items.forEach(item => {
-        const title = item.title || 'Untitled';
-        const titleMatches = !normalizedQuery || title.toLowerCase().includes(normalizedQuery);
+    function buildNode(item, level, key) {
+      const title = item.title || 'Untitled';
+      const hasChildren = Boolean(item.items && item.items.length);
+      const childNodes = hasChildren
+        ? item.items.map((child, i) => buildNode(child, level + 1, `${key}.${i}`)).filter(Boolean)
+        : [];
 
-        if (titleMatches) {
-          const btn = document.createElement('button');
-          btn.className = 'toc-item';
-          btn.textContent = title;
-          btn.dataset.level = level;
-          btn.title = title;
-          btn.addEventListener('click', () => tocClickHandler(item.dest));
-          els.tocList.appendChild(btn);
-          matches++;
-        }
+      const titleMatches = !normalizedQuery || title.toLowerCase().includes(normalizedQuery);
+      const hasVisibleChildren = childNodes.length > 0;
+      if (!titleMatches && !hasVisibleChildren) return null;
 
-        if (item.items && item.items.length) renderItems(item.items, level + 1);
-      });
+      const node = document.createElement('div');
+      node.className = 'toc-node';
+
+      const row = document.createElement('div');
+      row.className = 'toc-row';
+      row.style.setProperty('--toc-level', String(level));
+
+      let childrenWrap = null;
+      if (hasChildren) {
+        const collapsed = !forceExpand && tocCollapsed.has(key);
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'toc-toggle';
+        toggle.title = collapsed ? 'Expand section' : 'Collapse section';
+        toggle.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
+        toggle.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+        toggle.classList.toggle('collapsed', collapsed);
+        toggle.addEventListener('click', e => {
+          e.stopPropagation();
+          const isCollapsed = tocCollapsed.has(key);
+          if (isCollapsed) tocCollapsed.delete(key);
+          else tocCollapsed.add(key);
+          renderTOC(normalizedQuery);
+        });
+        row.appendChild(toggle);
+
+        childrenWrap = document.createElement('div');
+        childrenWrap.className = 'toc-children';
+        if (collapsed) childrenWrap.classList.add('toc-collapsed');
+      } else {
+        const spacer = document.createElement('span');
+        spacer.className = 'toc-toggle-spacer';
+        row.appendChild(spacer);
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'toc-item';
+      btn.textContent = title;
+      btn.title = title;
+      btn.addEventListener('click', () => tocClickHandler(item.dest));
+      row.appendChild(btn);
+
+      node.appendChild(row);
+      if (childrenWrap) {
+        childNodes.forEach(childNode => childrenWrap.appendChild(childNode));
+        node.appendChild(childrenWrap);
+      }
+
+      visibleCount++;
+      return node;
     }
 
-    renderItems(tocOutline, 0);
+    tocOutline.forEach((item, i) => {
+      const node = buildNode(item, 0, String(i));
+      if (node) els.tocList.appendChild(node);
+    });
 
-    if (matches === 0) {
+    if (visibleCount === 0) {
       els.tocList.innerHTML = '<p class="toc-empty">No matching sections</p>';
     }
   }
@@ -164,6 +242,7 @@ const UI = (() => {
   // Build TOC from pdf.js outline
   async function buildTOC(outline, onItemClick) {
     tocOutline = outline || [];
+    tocCollapsed = new Set(collectCollapsibleKeys(tocOutline));
     tocClickHandler = onItemClick;
     if (els.tocSearchInput) els.tocSearchInput.value = '';
     renderTOC();
@@ -172,6 +251,10 @@ const UI = (() => {
   els.tocSearchInput.addEventListener('input', e => {
     renderTOC(e.target.value);
   });
+
+  if (els.tocCollapseAllBtn) {
+    els.tocCollapseAllBtn.addEventListener('click', collapseAllTOC);
+  }
 
   // Create a lightweight placeholder wrapper so scroll height is correct before rendering
   function createPlaceholder(pageNum, width, height) {
@@ -415,6 +498,7 @@ const UI = (() => {
     showViewer,
     setLoading,
     setPageInfo,
+    setDocumentName,
     setZoom,
     toggleSidebar,
     toggleSettings,
